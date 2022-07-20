@@ -2,6 +2,14 @@ use bevy::prelude::Component;
 
 use crate::Owner;
 
+
+#[derive(Component)]
+pub struct Map {
+    pub w: i32,  // The human-readable name of the unit
+    pub h: i32,  // The owner of the unit
+}
+
+
 #[derive(Component)]
 pub struct Position {
 	pub x: f32,
@@ -27,6 +35,25 @@ impl Default for Velocity {
 }
 
 #[derive(Component)]
+pub struct OrthographicVelocity {
+	pub dx: f32,
+	pub dy: f32,
+    pub dz: f32,
+    pub dw: f32,  // Angular velocity
+}
+
+impl Default for OrthographicVelocity {
+    fn default() -> Self {
+        Self {
+            dx: 0.,
+            dy: 0.,
+            dz: 0.,
+            dw: 0.,
+        }
+    }
+}
+
+#[derive(Component)]
 pub struct Hp {
     pub max: u8,
     pub current: u8,
@@ -38,6 +65,7 @@ pub struct Shield {
     pub current: u8,
 }
 
+#[derive(Component)]
 pub struct UnitControls {
     is_selected: bool,
 }

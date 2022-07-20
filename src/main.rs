@@ -2,7 +2,16 @@
 
 use bevy::prelude::*;
 use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
-use konquer;
+use konquer::{self, Map};
+
+// Temp Const
+
+const WINDOW_W: i32 = 500;
+const WINDOW_H: i32 = 500;
+
+const MAP_W: i32 = 1200;
+const MAP_H: i32 = 1200;
+
 
 #[derive(Debug)]
 pub struct WinSize {
@@ -15,13 +24,14 @@ fn main() {
 		.insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
 		.insert_resource(WindowDescriptor {
 			title: "rust-rts ".to_string() + env!("CARGO_PKG_VERSION"),
-			width: 500.0,
-			height: 500.0,
+			width: WINDOW_W as f32,
+			height: WINDOW_H as f32,
 			..Default::default()
 		})
 		.add_plugins(DefaultPlugins)
 		.add_plugin(DebugLinesPlugin::default())
 		.add_plugin(konquer::UnitPlugin)
+		.add_plugin(konquer::KinematicCameraPlugin)
         .add_startup_system(startup_system)
 		.add_startup_system(test_system)
 		.run();
@@ -34,29 +44,32 @@ fn startup_system(
 	mut windows: ResMut<Windows>,
 	mut lines: ResMut<DebugLines>
 ) {
-	commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 	let window = windows.get_primary_mut().unwrap();
 	let win_size = WinSize { w: window.width(), h: window.height() };
 	commands.insert_resource(win_size);
-	// Draw grid
-	// for x in (0..win_size.w as i8).step_by(10) {
-	// 	lines.line_colored(
-	// 		Vec3::new(-400.0, 0.0, 0.5),
-	// 		Vec3::new(400.0, 0.0, 0.5),
-	// 		0.9,
-	// 		Color::GREEN,
-	// 	);
-	// }
-	println!("Window is {}x{}", window.width(), window.height());
-	for y in (-250..250).step_by(10) {
-		println!("Drawing HLine at y={}", y);
+
+	let map: konquer::Map = konquer::Map { w: MAP_W, h: MAP_H };
+
+	// Draw map grid
+	for y in (-map.h / 2..map.h / 2).step_by(10) {
 		lines.line_colored(
-			Vec3::new(-window.width() / 2., y as f32, 0.5),
-			Vec3::new(window.width() / 2., y as f32, 0.5),
+			Vec3::new(-MAP_W as f32 / 2., y as f32, 0.5),
+			Vec3::new(MAP_W as f32 / 2., y as f32, 0.5),
 			9999999.,
-			Color::GREEN,
+			Color::Rgba { red:0.1, green: 0.1, blue: 0.1, alpha: 1. },
 		);
 	}
+	for x in (-map.w / 2..map.w / 2).step_by(10) {
+		lines.line_colored(
+			Vec3::new(x as f32, -MAP_H as f32 / 2., 0.5),
+			Vec3::new(x as f32, MAP_H as f32 / 2., 0.5),
+			9999999.,
+			Color::Rgba { red:0.1, green: 0.1, blue: 0.1, alpha: 1. },
+		);
+	}
+
+	commands.insert_resource(map);
+
 }
 
 fn test_system(

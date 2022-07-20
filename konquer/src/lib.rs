@@ -15,6 +15,81 @@ static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
 const UNIT_ZORDER: f32 = 10.;
 const SCALE: f32 = 1.;
 
+// -- KinematicCameraPlugin --------------------------------------------
+
+const CAMERA_DRAG: f32 = 0.93;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
+
+pub struct KinematicCameraPlugin;
+
+impl Plugin for KinematicCameraPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_startup_system(camera_startup_system)
+            .add_system(camera_move_system);
+    }
+}
+
+fn camera_startup_system(
+    mut commands: Commands,
+) {
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d())
+		.insert(OrthographicVelocity { ..Default::default() });
+}
+
+fn camera_move_system(
+    kb: Res<Input<KeyCode>>,
+    map: Res<Map>,
+    mut query: Query<(&mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
+) {
+    if let Ok((mut projection, mut cam_transform, mut cam_velocity)) = query.get_single_mut() {
+        // Camera drag
+        cam_velocity.dx *= CAMERA_DRAG;
+        cam_velocity.dy *= CAMERA_DRAG;
+        cam_velocity.dz *= CAMERA_DRAG;
+        // Change velocity
+        cam_velocity.dx +=
+        if kb.pressed(KeyCode::Left) && (cam_transform.translation.x > -map.w as f32 / 2.) {
+			-1.
+		} else if kb.pressed(KeyCode::Right) && (cam_transform.translation.x < map.w as f32 / 2.) {
+			1.
+		} else {
+			0.
+		};
+        cam_velocity.dy +=
+        if kb.pressed(KeyCode::Up) && (cam_transform.translation.y < map.h as f32 / 2.) {
+			1.
+		} else if kb.pressed(KeyCode::Down) && (cam_transform.translation.y > -map.h as f32 / 2.) {
+			-1.
+		} else {
+			0.
+		};
+        cam_velocity.dz +=
+        if kb.pressed(KeyCode::PageUp) {
+			0.005
+		} else if kb.pressed(KeyCode::PageDown) {
+			-0.005
+		} else {
+			0.
+		};
+        // Transform camera
+        if cam_velocity.dx.abs() > 0.01 {
+            cam_transform.translation.x += (cam_velocity.dx * projection.scale);
+        }
+        if cam_velocity.dy.abs() > 0.01 {
+            cam_transform.translation.y += (cam_velocity.dy * projection.scale);
+        }
+        // Zoom
+        if cam_velocity.dz.abs() > 0.00001 {
+            let mut log_zoom = projection.scale.ln();
+            log_zoom += cam_velocity.dz;
+            projection.scale = log_zoom.exp();
+        }
+        // TODO rotation?
+    }
+}
+
+// -- UnitPlugin --------------------------------------------
+
 pub struct UnitPlugin;
 
 impl Plugin for UnitPlugin {
@@ -100,6 +175,7 @@ fn spawn_units_system(
         match &ev.unit_type {
         UnitType::DefaultUnit => {
             ec.insert(Hp { max: 100, current: 100 } );
+            ec.insert( UnitControls { ..Default::default() } );
             ec.insert_bundle(
                 GeometryBuilder::build_as(
                     // &shapes::RegularPolygon {
@@ -142,10 +218,10 @@ fn spawn_units_system(
 }
 
 fn unit_movement_system(
-    query: Query<(&Transform, &Velocity), With<Velocity>>,
+    query: Query<(&Transform, &Position,&Velocity), With<Velocity>>,
 ) {
-    for (transform, v) in query.iter() {
-        println!("Moving unit {} + {}, {} + {}", transform.translation.x, v.dx, transform.translation.y, v.dy);
+    for (transform, pos, vel) in query.iter() {
+        println!("Moving unit {} + {}, {} + {}", pos.x, vel.dx, pos.y, vel.dy);
     }
 }
 
