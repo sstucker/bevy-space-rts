@@ -3,6 +3,8 @@ use bevy_prototype_lyon::prelude::*;
 
 use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}};
 
+use std::fs;
+
 pub mod components;
 pub use components::*;
 
@@ -11,7 +13,7 @@ static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
 
 const UNIT_ZORDER: f32 = 10.;
-const SCALE: f32 = 0.5;
+const SCALE: f32 = 1.;
 
 pub struct UnitPlugin;
 
@@ -94,18 +96,23 @@ fn spawn_units_system(
         });
         ec.insert( Position { x: ev.position.x, y: ev.position.y, w: ev.position.z } );
         ec.insert( Velocity { ..Default::default() } );
+        println!("Drawing SVG {}", std::fs::read_to_string("konquer/assets/path01.svg").unwrap());
         match &ev.unit_type {
         UnitType::DefaultUnit => {
             ec.insert(Hp { max: 100, current: 100 } );
             ec.insert_bundle(
                 GeometryBuilder::build_as(
-                    &shapes::RegularPolygon {
-                        sides: 5,
-                        feature: shapes::RegularPolygonFeature::Radius(10.0),
-                        ..shapes::RegularPolygon::default()
+                    // &shapes::RegularPolygon {
+                    //     sides: 5,
+                    //     feature: shapes::RegularPolygonFeature::Radius(10.0),
+                    //     ..shapes::RegularPolygon::default()
+                    // },
+                    &shapes::SvgPathShape{
+                        svg_path_string: String::from(std::fs::read_to_string("konquer/assets/path01.svg").unwrap()),
+                        svg_doc_size_in_px: Vec2::new(100., 100.).to_owned()
                     },
                     DrawMode::Outlined {
-                        fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
+                        fill_mode: FillMode::color(Color::rgba(0.5, 0.5, 0.5, 0.5)),
                         outline_mode: StrokeMode::new(Color::CYAN, 2.0),
                     },
                     Transform {
