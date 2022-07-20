@@ -1,9 +1,11 @@
-use bevy::prelude::*;
+#[allow(unused_mut)]
+#[allow(unused)]
+#[allow(dead_code)]
+
+use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
 use bevy_prototype_lyon::prelude::*;
 
-use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}};
-
-use std::fs;
+use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, time::Duration};
 
 pub mod components;
 pub use components::*;
@@ -14,6 +16,8 @@ static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
 
 const UNIT_ZORDER: f32 = 10.;
 const SCALE: f32 = 1.;
+
+type WindowSize = Vec2;
 
 // -- KinematicCameraPlugin --------------------------------------------
 
@@ -106,8 +110,10 @@ impl Plugin for UnitPlugin {
             .insert_resource(Msaa { samples: 4 })
             .add_plugin(ShapePlugin)
             .add_event::<SpawnUnitEvent>()
+            .add_startup_system(startup_system)
             .add_system(kill_system)
             .add_system(unit_movement_system)
+            .add_system(input_unit_select_system)
             .add_system(spawn_units_system);
     }
 }
@@ -140,7 +146,9 @@ pub struct Owner {
 impl Owner {
     pub fn new() -> Owner {
         // Create a unique Owner ID each time new is called
-        Owner { id: NUMBER_OF_OWNERS.fetch_add(1, Ordering::Relaxed) }
+        Owner {
+            id: NUMBER_OF_OWNERS.fetch_add(1, Ordering::Relaxed),
+        }
     }
 }
 
@@ -154,6 +162,30 @@ impl SpawnUnitEvent {
     pub fn new(unit_type: UnitType, owner: Owner, position: Vec3) -> SpawnUnitEvent {
         SpawnUnitEvent { unit_type: unit_type, owner: owner, position: position}
     }
+}
+
+pub struct Ui {
+    pub held_position: Vec2,
+    pub selected_units: Vec<u8>,
+}
+
+impl Default for Ui {
+    fn default() -> Self {
+        Self {
+            held_position: Vec2::new(f32::NAN, f32::NAN),
+            selected_units: Vec::new(),
+        }
+    }
+}
+
+fn startup_system(
+    mut commands: Commands,
+    windows: Res<Windows>,
+) {
+	commands.insert_resource( Ui { ..Default::default() } );
+    let window = windows.get_primary().unwrap();
+    let window_size = WindowSize::new(window.width(), window.height());
+	commands.insert_resource(window_size);
 }
 
 // Master decoder of units and their properties. TODO convert to table
@@ -185,7 +217,7 @@ fn spawn_units_system(
                     // },
                     &shapes::SvgPathShape{
                         svg_path_string: String::from(std::fs::read_to_string("konquer/assets/path01.svg").unwrap()),
-                        svg_doc_size_in_px: Vec2::new(100., 100.).to_owned()
+                        svg_doc_size_in_px: Vec2::new(20., 20.).to_owned()
                     },
                     DrawMode::Outlined {
                         fill_mode: FillMode::color(Color::rgba(0.5, 0.5, 0.5, 0.5)),
@@ -221,7 +253,7 @@ fn unit_movement_system(
     query: Query<(&Transform, &Position,&Velocity), With<Velocity>>,
 ) {
     for (transform, pos, vel) in query.iter() {
-        println!("Moving unit {} + {}, {} + {}", pos.x, vel.dx, pos.y, vel.dy);
+        // println!("Moving unit {} + {}, {} + {}", pos.x, vel.dx, pos.y, vel.dy);
     }
 }
 
@@ -229,6 +261,79 @@ fn kill_system(
     query: Query<(&Unit, &Hp), With<Hp>>
 ) {
     for (unit, hp) in query.iter() {
-        eprintln!("Entity {}{} is owned by {} and has {} HP.", unit.name, unit.id, unit.owner.id, hp.current);
+        // eprintln!("Entity {}{} is owned by {} and has {} HP.", unit.name, unit.id, unit.owner.id, hp.current);
     }
 }
+
+fn input_unit_select_system(
+    mut commands: Commands,
+    mb: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    map: Res<Map>,
+    mut ui: ResMut<Ui>,
+    query: Query<(&mut UnitControls, &Position, &Unit), With<Unit>>,
+    q_camera: Query<(&OrthographicProjection, &Camera, &GlobalTransform), With<Camera>>,
+    q_rect: Query<Entity, With<SelectionRect>>,
+) {
+    // Delete any existing selection rectangles
+    for rect in q_rect.iter() {
+        commands.entity(rect).despawn();
+    }
+    
+    let window = windows.get_primary().unwrap();
+    if mb.pressed(MouseButton::Left) {
+        let (projection, camera, camera_transform) = q_camera.single();
+        if let Some(w_pos) = window.cursor_position() {
+            // Convert cursor position to world position
+            let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+            let ndc: Vec2 = (w_pos / window_size) * 2. - Vec2::ONE;
+            let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
+            let mut m_pos: Vec2 = ndc_to_world.project_point3(ndc.extend(-1.)).truncate();
+            
+            // Prevent selection from exceeding bounds of the world
+            if m_pos[0] < -map.w as f32 / 2. {
+                m_pos[0] = -map.w as f32 / 2.;
+            }
+            else if m_pos[0] > map.w as f32 / 2. {
+                m_pos[0] = map.w as f32 / 2.;
+            }
+            if m_pos[1] < -map.h as f32 / 2. {
+                m_pos[1] = -map.h as f32 / 2.;
+            }
+            else if m_pos[1] > map.h as f32 / 2. {
+                m_pos[1] = map.h as f32 / 2.;
+            }
+
+            if ui.held_position[0].is_nan() {
+                ui.held_position = m_pos;
+                println!("Held position is {}, {}", ui.held_position[0], ui.held_position[1]);
+            }
+            println!("Cursor position is {}, {}", m_pos[0], m_pos[1]);
+            
+            // Draw selection rect
+            let mut path_builder = PathBuilder::new();
+            path_builder.move_to(ui.held_position);
+            path_builder.line_to(Vec2::new(ui.held_position[0], m_pos[1]));
+            path_builder.line_to(Vec2::new(m_pos[0], m_pos[1]));
+            path_builder.line_to(Vec2::new(m_pos[0], ui.held_position[1]));
+            path_builder.line_to(ui.held_position);
+            let line = path_builder.build();
+            commands.spawn_bundle(GeometryBuilder::build_as(
+                &line,
+                DrawMode::Stroke(StrokeMode::new(
+                    Color::YELLOW,
+                    2.0 * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
+                )),
+                Transform { ..Default::default()  },
+            )).insert( SelectionRect );
+        }
+    }
+    else if mb.just_released(MouseButton::Left) {
+        ui.held_position = Vec2::new(f32::NAN, f32::NAN);
+    }
+    for (controls, pos, unit) in query.iter() {
+        // println!("Unit {}{} is owned by {} and is at {}, {}. Selected? {}", unit.name, unit.id, unit.owner.id, pos.x, pos.y, controls.is_selected);
+    }
+
+}
+

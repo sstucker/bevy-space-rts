@@ -1,7 +1,6 @@
-use bevy::prelude::Component;
+use bevy::{prelude::Component, math::Vec2};
 
 use crate::Owner;
-
 
 #[derive(Component)]
 pub struct Map {
@@ -9,6 +8,8 @@ pub struct Map {
     pub h: i32,  // The owner of the unit
 }
 
+#[derive(Component)]
+pub struct SelectionRect;
 
 #[derive(Component)]
 pub struct Position {
@@ -67,7 +68,7 @@ pub struct Shield {
 
 #[derive(Component)]
 pub struct UnitControls {
-    is_selected: bool,
+    pub is_selected: bool,
 }
 
 impl Default for UnitControls {

@@ -12,13 +12,6 @@ const WINDOW_H: i32 = 500;
 const MAP_W: i32 = 1200;
 const MAP_H: i32 = 1200;
 
-
-#[derive(Debug)]
-pub struct WinSize {
-	pub w: f32,
-	pub h: f32,
-}
-
 fn main() {
 	App::new()
 		.insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
@@ -41,13 +34,9 @@ fn startup_system(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-	mut windows: ResMut<Windows>,
+	// mut windows: ResMut<Windows>,
 	mut lines: ResMut<DebugLines>
 ) {
-	let window = windows.get_primary_mut().unwrap();
-	let win_size = WinSize { w: window.width(), h: window.height() };
-	commands.insert_resource(win_size);
-
 	let map: konquer::Map = konquer::Map { w: MAP_W, h: MAP_H };
 
 	// Draw map grid
