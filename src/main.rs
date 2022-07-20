@@ -1,4 +1,4 @@
-#![allow(unused)] // silence unused warnings while exploring (to comment out)
+#![allow(unused)]
 
 use bevy::prelude::*;
 use konquer;
@@ -37,12 +37,15 @@ fn startup_system(
 }
 
 fn test_system(
-	mut ev_spawn: EventWriter<konquer::SpawnUnitEvent>,
+	mut test_spawner: EventWriter<konquer::SpawnUnitEvent>,
 ) {
-	ev_spawn.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit
+	let owner1 = konquer::Owner::new();
+	let owner2 = konquer::Owner::new();
+
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		konquer::UnitType::DefaultUnit, owner1, Vec3::new(-20., 0., 0.)
 	));
-	ev_spawn.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::Tank
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		konquer::UnitType::DefaultUnit, owner2, Vec3::new(20., 0., 0.5)
 	));
 }
