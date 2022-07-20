@@ -6,14 +6,24 @@ use crate::Owner;
 pub struct Position {
 	pub x: f32,
 	pub y: f32,
-    pub w: f32,  // 
+    pub w: f32,  // Angular position
 }
 
 #[derive(Component)]
 pub struct Velocity {
-	pub x: f32,
-	pub y: f32,
-    pub w: f32,  // Angular velocity
+	pub dx: f32,
+	pub dy: f32,
+    pub dw: f32,  // Angular velocity
+}
+
+impl Default for Velocity {
+    fn default() -> Self {
+        Self {
+            dx: 0.,
+            dy: 0.,
+            dw: 0.,
+        }
+    }
 }
 
 #[derive(Component)]
@@ -26,6 +36,18 @@ pub struct Hp {
 pub struct Shield {
     pub max: u8,
     pub current: u8,
+}
+
+pub struct UnitControls {
+    is_selected: bool,
+}
+
+impl Default for UnitControls {
+    fn default() -> Self {
+        Self {
+            is_selected: false,
+        }
+    }
 }
 
 #[derive(Component)]

@@ -30,6 +30,7 @@ impl Plugin for UnitPlugin {
             .add_plugin(ShapePlugin)
             .add_event::<SpawnUnitEvent>()
             .add_system(kill_system)
+            .add_system(unit_movement_system)
             .add_system(spawn_units_system);
     }
 }
@@ -92,18 +93,19 @@ fn spawn_units_system(
             id:  NUMBER_OF_UNITS.fetch_add(1, Ordering::Relaxed),
         });
         ec.insert( Position { x: ev.position.x, y: ev.position.y, w: ev.position.z } );
+        ec.insert( Velocity { ..Default::default() } );
         match &ev.unit_type {
         UnitType::DefaultUnit => {
             ec.insert(Hp { max: 100, current: 100 } );
             ec.insert_bundle(
                 GeometryBuilder::build_as(
                     &shapes::RegularPolygon {
-                        sides: 4,
+                        sides: 5,
                         feature: shapes::RegularPolygonFeature::Radius(10.0),
                         ..shapes::RegularPolygon::default()
                     },
                     DrawMode::Outlined {
-                        fill_mode: FillMode::color(Color::CYAN),
+                        fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
                         outline_mode: StrokeMode::new(Color::CYAN, 2.0),
                     },
                     Transform {
@@ -132,10 +134,18 @@ fn spawn_units_system(
     }
 }
 
-fn kill_system(
-    query: Query<(Entity, &Unit, &Hp, With<Hp>)>
+fn unit_movement_system(
+    query: Query<(&Transform, &Velocity), With<Velocity>>,
 ) {
-    for (_entity, unit, hp, _) in query.iter() {
+    for (transform, v) in query.iter() {
+        println!("Moving unit {} + {}, {} + {}", transform.translation.x, v.dx, transform.translation.y, v.dy);
+    }
+}
+
+fn kill_system(
+    query: Query<(&Unit, &Hp), With<Hp>>
+) {
+    for (unit, hp) in query.iter() {
         eprintln!("Entity {}{} is owned by {} and has {} HP.", unit.name, unit.id, unit.owner.id, hp.current);
     }
 }
