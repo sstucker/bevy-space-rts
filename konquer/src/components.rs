@@ -1,4 +1,4 @@
-use bevy::{prelude::Component, math::Vec2};
+use bevy::{prelude::Component, math::{Vec2, Vec3}};
 
 use crate::Owner;
 
@@ -12,10 +12,9 @@ pub struct Map {
 pub struct SelectionRect;
 
 #[derive(Component)]
-pub struct Position {
-	pub x: f32,
-	pub y: f32,
-    pub w: f32,  // Angular position
+pub struct Body {
+	pub position: Vec3,  // x, y, w
+    pub size: Vec2, // x, y
 }
 
 #[derive(Component)]

@@ -4,8 +4,9 @@
 
 use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
 use bevy_prototype_lyon::prelude::*;
+use std::cmp;
 
-use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, time::Duration};
+use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, time::Duration, u32::MAX};
 
 pub mod components;
 pub use components::*;
@@ -16,6 +17,8 @@ static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
 
 const UNIT_ZORDER: f32 = 10.;
 const SCALE: f32 = 1.;
+
+const USER_ID: u8 = 0;
 
 type WindowSize = Vec2;
 
@@ -201,7 +204,7 @@ fn spawn_units_system(
             owner: ev.owner.clone(),
             id:  NUMBER_OF_UNITS.fetch_add(1, Ordering::Relaxed),
         });
-        ec.insert( Position { x: ev.position.x, y: ev.position.y, w: ev.position.z } );
+        ec.insert( Body { position: ev.position, size: Vec2::new(1., 1.) } );
         ec.insert( Velocity { ..Default::default() } );
         println!("Drawing SVG {}", std::fs::read_to_string("konquer/assets/path01.svg").unwrap());
         match &ev.unit_type {
@@ -250,9 +253,9 @@ fn spawn_units_system(
 }
 
 fn unit_movement_system(
-    query: Query<(&Transform, &Position,&Velocity), With<Velocity>>,
+    query: Query<(&Transform, &Body ,&Velocity), With<Velocity>>,
 ) {
-    for (transform, pos, vel) in query.iter() {
+    for (transform, body, vel) in query.iter() {
         // println!("Moving unit {} + {}, {} + {}", pos.x, vel.dx, pos.y, vel.dy);
     }
 }
@@ -271,7 +274,7 @@ fn input_unit_select_system(
     windows: Res<Windows>,
     map: Res<Map>,
     mut ui: ResMut<Ui>,
-    query: Query<(&mut UnitControls, &Position, &Unit), With<Unit>>,
+    q_units: Query<(&mut UnitControls, &Body, &Unit), With<Unit>>,
     q_camera: Query<(&OrthographicProjection, &Camera, &GlobalTransform), With<Camera>>,
     q_rect: Query<Entity, With<SelectionRect>>,
 ) {
@@ -280,11 +283,11 @@ fn input_unit_select_system(
         commands.entity(rect).despawn();
     }
     
-    let window = windows.get_primary().unwrap();
-    if mb.pressed(MouseButton::Left) {
-        let (projection, camera, camera_transform) = q_camera.single();
-        if let Some(w_pos) = window.cursor_position() {
+    if mb.pressed(MouseButton::Left) || mb.just_released(MouseButton::Left) {  // On left click
+        let window = windows.get_primary().unwrap();
+        if let Some(w_pos) = window.cursor_position() {  // If cursor is in window
             // Convert cursor position to world position
+            let (projection, camera, camera_transform) = q_camera.single();
             let window_size = Vec2::new(window.width() as f32, window.height() as f32);
             let ndc: Vec2 = (w_pos / window_size) * 2. - Vec2::ONE;
             let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
@@ -303,37 +306,47 @@ fn input_unit_select_system(
             else if m_pos[1] > map.h as f32 / 2. {
                 m_pos[1] = map.h as f32 / 2.;
             }
-
+    
             if ui.held_position[0].is_nan() {
                 ui.held_position = m_pos;
                 println!("Held position is {}, {}", ui.held_position[0], ui.held_position[1]);
             }
             println!("Cursor position is {}, {}", m_pos[0], m_pos[1]);
             
-            // Draw selection rect
-            let mut path_builder = PathBuilder::new();
-            path_builder.move_to(ui.held_position);
-            path_builder.line_to(Vec2::new(ui.held_position[0], m_pos[1]));
-            path_builder.line_to(Vec2::new(m_pos[0], m_pos[1]));
-            path_builder.line_to(Vec2::new(m_pos[0], ui.held_position[1]));
-            path_builder.line_to(ui.held_position);
-            let line = path_builder.build();
-            commands.spawn_bundle(GeometryBuilder::build_as(
-                &line,
-                DrawMode::Stroke(StrokeMode::new(
-                    Color::YELLOW,
-                    2.0 * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
-                )),
-                Transform { ..Default::default()  },
-            )).insert( SelectionRect );
+            if mb.pressed(MouseButton::Left) {
+                // Draw selection rect
+                let mut path_builder = PathBuilder::new();
+                path_builder.move_to(ui.held_position);
+                path_builder.line_to(Vec2::new(ui.held_position[0], m_pos[1]));
+                path_builder.line_to(Vec2::new(m_pos[0], m_pos[1]));
+                path_builder.line_to(Vec2::new(m_pos[0], ui.held_position[1]));
+                path_builder.line_to(ui.held_position);
+                let line = path_builder.build();
+                commands.spawn_bundle(GeometryBuilder::build_as(
+                    &line,
+                    DrawMode::Stroke(StrokeMode::new(
+                        Color::YELLOW,
+                        2.0 * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
+                    )),
+                    Transform { ..Default::default()  },
+                )).insert( SelectionRect );
+            }
+            else if mb.just_released(MouseButton::Left) {
+                let bb: Vec4 = Vec4::new(
+                    ui.held_position[0].min(m_pos[0]),
+                    ui.held_position[1].max(m_pos[1]),
+                    ui.held_position[0].max(m_pos[0]),
+                    ui.held_position[1].min(m_pos[1]),
+                );
+                println!("Box evaluated! ({}, {}), ({}, {})", bb.x, bb.y, bb.z, bb.w);
+                for (controls, body, unit) in q_units.iter() {
+                    if (bb.x <= body.position.x && body.position.x <= bb.z) && (bb.y >= body.position.y && body.position.y >= bb.w) {
+                        println!("Unit {} at {}, {} selected.", unit.id, body.position.x, body.position.x);
+                    }
+                }
+                ui.held_position = Vec2::new(f32::NAN, f32::NAN);
+            }
         }
     }
-    else if mb.just_released(MouseButton::Left) {
-        ui.held_position = Vec2::new(f32::NAN, f32::NAN);
-    }
-    for (controls, pos, unit) in query.iter() {
-        // println!("Unit {}{} is owned by {} and is at {}, {}. Selected? {}", unit.name, unit.id, unit.owner.id, pos.x, pos.y, controls.is_selected);
-    }
-
 }
 

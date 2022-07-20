@@ -68,9 +68,15 @@ fn test_system(
 	let owner2 = konquer::Owner::new();
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner1, Vec3::new(-20., 0., 0.)
+		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(-50., -50., 0.)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner2, Vec3::new(20., 0., 0.5)
+		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(0., 0., 0.)
+	));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(0., -100., 0.)
+	));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		konquer::UnitType::DefaultUnit, owner2.clone(), Vec3::new(100., 100., 0.5)
 	));
 }
