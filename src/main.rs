@@ -1,16 +1,13 @@
 #![allow(unused)]
 
 use bevy::prelude::*;
-use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
-use konquer::{self, Map};
+use bevy_prototype_lyon::prelude::*;
+use konquer::{self, Map, GridLine};
 
 // Temp Const
 
 const WINDOW_W: i32 = 500;
 const WINDOW_H: i32 = 500;
-
-const MAP_W: i32 = 1200;
-const MAP_H: i32 = 1200;
 
 fn main() {
 	App::new()
@@ -22,7 +19,6 @@ fn main() {
 			..Default::default()
 		})
 		.add_plugins(DefaultPlugins)
-		.add_plugin(DebugLinesPlugin::default())
 		.add_plugin(konquer::UnitPlugin)
 		.add_plugin(konquer::KinematicCameraPlugin)
         .add_startup_system(startup_system)
@@ -35,29 +31,8 @@ fn startup_system(
 	asset_server: Res<AssetServer>,
 	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 	// mut windows: ResMut<Windows>,
-	mut lines: ResMut<DebugLines>
 ) {
-	let map: konquer::Map = konquer::Map { w: MAP_W, h: MAP_H };
 
-	// Draw map grid
-	for y in (-map.h / 2..map.h / 2).step_by(10) {
-		lines.line_colored(
-			Vec3::new(-MAP_W as f32 / 2., y as f32, 0.5),
-			Vec3::new(MAP_W as f32 / 2., y as f32, 0.5),
-			9999999.,
-			Color::Rgba { red:0.1, green: 0.1, blue: 0.1, alpha: 1. },
-		);
-	}
-	for x in (-map.w / 2..map.w / 2).step_by(10) {
-		lines.line_colored(
-			Vec3::new(x as f32, -MAP_H as f32 / 2., 0.5),
-			Vec3::new(x as f32, MAP_H as f32 / 2., 0.5),
-			9999999.,
-			Color::Rgba { red:0.1, green: 0.1, blue: 0.1, alpha: 1. },
-		);
-	}
-
-	commands.insert_resource(map);
 
 }
 
@@ -74,9 +49,9 @@ fn test_system(
 		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(0., 0., 0.)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(0., -100., 0.)
+		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(0., -100., 0.5)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner2.clone(), Vec3::new(100., 100., 0.5)
+		konquer::UnitType::DefaultUnit, owner2.clone(), Vec3::new(100., 100., 0.3)
 	));
 }

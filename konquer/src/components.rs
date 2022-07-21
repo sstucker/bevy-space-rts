@@ -1,8 +1,8 @@
-use bevy::{prelude::Component, math::{Vec2, Vec3}};
+use bevy::{prelude::Component, math::{Vec2, Vec3, Vec4}, reflect::List};
 
-use crate::Owner;
+use crate::{Owner, SPRITE_SCALE};
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Map {
     pub w: i32,  // The human-readable name of the unit
     pub h: i32,  // The owner of the unit
@@ -12,9 +12,32 @@ pub struct Map {
 pub struct SelectionRect;
 
 #[derive(Component)]
+pub struct SelectedCircle;
+
+#[derive(Component)]
+pub struct DebugRect;
+
+#[derive(Component)]
+pub struct DebugSelectionRadius;
+
+#[derive(Component)]
+pub struct GridLine;
+
+#[derive(Component)]
 pub struct Body {
 	pub position: Vec3,  // x, y, w
     pub size: Vec2, // x, y
+    pub selection_radius: f32
+}
+
+impl Body {
+    pub fn new(position: Vec3, size: Vec2) -> Body {
+        Body {
+            position: position,
+            size: size,
+            selection_radius: (size.x + size.y) / 4. * SPRITE_SCALE
+        }
+    }
 }
 
 #[derive(Component)]
@@ -68,12 +91,14 @@ pub struct Shield {
 #[derive(Component)]
 pub struct UnitControls {
     pub is_selected: bool,
+    pub path: Vec<Vec2>,
 }
 
 impl Default for UnitControls {
     fn default() -> Self {
         Self {
             is_selected: false,
+            path: Vec::new(),
         }
     }
 }
