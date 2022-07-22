@@ -1,4 +1,8 @@
-use bevy::{prelude::Component, math::{Vec2, Vec3, Vec4}, reflect::List};
+use std::collections::VecDeque;
+
+use bevy::{prelude::Component, math::{Vec2, Vec3}};
+
+use std::{sync::atomic::{AtomicU8, Ordering}};
 
 use crate::{Owner, SPRITE_SCALE};
 
@@ -12,7 +16,7 @@ pub struct Map {
 pub struct SelectionRect;
 
 #[derive(Component)]
-pub struct SelectedCircle;
+pub struct UnitSelectedCircle;
 
 #[derive(Component)]
 pub struct DebugRect;
@@ -24,10 +28,27 @@ pub struct DebugSelectionRadius;
 pub struct GridLine;
 
 #[derive(Component)]
+pub struct MainSprite;
+
+#[derive(Component)]
+pub struct UnitPathDisplay;
+
+#[derive(Component)]
+pub struct Turret {
+    pub reload_time: f32
+}
+
+#[derive(Component)]
 pub struct Body {
 	pub position: Vec3,  // x, y, w
     pub size: Vec2, // x, y
     pub selection_radius: f32
+}
+
+#[derive(Component)]
+pub struct Thruster {
+	pub unidirectional_thrust: f32,
+    pub omnidirectional_thrust: f32
 }
 
 impl Body {
@@ -58,25 +79,6 @@ impl Default for Velocity {
 }
 
 #[derive(Component)]
-pub struct OrthographicVelocity {
-	pub dx: f32,
-	pub dy: f32,
-    pub dz: f32,
-    pub dw: f32,  // Angular velocity
-}
-
-impl Default for OrthographicVelocity {
-    fn default() -> Self {
-        Self {
-            dx: 0.,
-            dy: 0.,
-            dz: 0.,
-            dw: 0.,
-        }
-    }
-}
-
-#[derive(Component)]
 pub struct Hp {
     pub max: u8,
     pub current: u8,
@@ -91,22 +93,72 @@ pub struct Shield {
 #[derive(Component)]
 pub struct UnitControls {
     pub is_selected: bool,
-    pub path: Vec<Vec2>,
+    pub is_movable: bool,
+    pub path: VecDeque<Vec2>,
 }
 
-impl Default for UnitControls {
-    fn default() -> Self {
-        Self {
+impl UnitControls {
+
+    pub fn new(movable: bool) -> UnitControls {
+        let uc = UnitControls {
             is_selected: false,
-            path: Vec::new(),
-        }
+            is_movable: movable,
+            path: VecDeque::new()
+        };
+        uc
+    }
+
+    pub fn new_rally(movable: bool, rally: Vec2) -> UnitControls {
+        let mut uc = UnitControls {
+            is_selected: false,
+            is_movable: movable,
+            path: VecDeque::new()
+        };
+        uc.path.push_back(rally);
+        uc
+    }
+
+}
+
+type EntityID = u32;
+
+#[derive(Component)]
+pub struct Targets {
+    pub deque: VecDeque<EntityID>  // Deque of targets
+}
+
+impl Targets {
+    pub fn new() -> Targets {
+        Targets { deque: VecDeque::new() }
     }
 }
+
+#[derive(Component)]
+pub struct Range {
+    pub sight: f32,  // The human-readable name of the unit
+    pub fire: f32  // Range at which the unit can fire
+}
+
+
+static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
+
 
 #[derive(Component)]
 pub struct Unit {
     pub name: String,  // The human-readable name of the unit
     pub owner: Owner,  // The owner of the unit
-    pub id: u8  // The global identifying number of the unit
+    pub id: u8,  // The global identifying number of the unit
 }
 
+impl Unit {
+    pub fn new(name: String, owner: Owner) -> Unit {
+        Unit {
+            name: name,
+            owner: owner,
+            id: NUMBER_OF_UNITS.fetch_add(1, Ordering::Relaxed)
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct Subunit;

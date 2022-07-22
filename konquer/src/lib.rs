@@ -6,17 +6,21 @@ use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
 use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 
-use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self, Debug}, time::Duration, u32::MAX};
+use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, time::Duration, u32::MAX};
 
 pub mod components;
 pub use components::*;
 
+pub mod spawner;
+use spawner::*;
+
+pub mod inputs;
+
+pub mod camera;
+pub use camera::*;
+
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
-static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
-
-const MIN_ZOOM_SCALE: f32 = 0.1;
-const MAX_ZOOM_SCALE: f32 = 6.;
 
 const UI_ZORDER: f32 = 20.;
 const UNIT_ZORDER: f32 = 10.;
@@ -30,88 +34,6 @@ const SPRITE_SCALE: f32 = 0.05;
 const USER_ID: u8 = 0;
 
 type WindowSize = Vec2;
-
-// -- KinematicCameraPlugin --------------------------------------------
-
-const CAMERA_DRAG: f32 = 0.93;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
-
-pub struct KinematicCameraPlugin;
-
-impl Plugin for KinematicCameraPlugin {
-    fn build(&self, app: &mut App) {
-        app
-            .add_startup_system(camera_startup_system)
-            .add_system(camera_move_system);
-    }
-}
-
-fn camera_startup_system(
-    mut commands: Commands,
-) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d())
-		.insert(OrthographicVelocity { ..Default::default() });
-}
-
-fn camera_move_system(
-    kb: Res<Input<KeyCode>>,
-    mut q_map: Query<&Map, With<Map>>,
-    mut query: Query<(&mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
-) {
-    if let Ok((mut projection, mut cam_transform, mut cam_velocity)) = query.get_single_mut() {
-        let map = q_map.single();
-        
-        // Camera drag
-        cam_velocity.dx *= CAMERA_DRAG;
-        cam_velocity.dy *= CAMERA_DRAG;
-        cam_velocity.dz *= CAMERA_DRAG;
-        // Change velocity
-        cam_velocity.dx +=
-        if kb.pressed(KeyCode::Left) && (cam_transform.translation.x > -map.w as f32 / 2.) {
-			-1.
-		} else if kb.pressed(KeyCode::Right) && (cam_transform.translation.x < map.w as f32 / 2.) {
-			1.
-		} else {
-			0.
-		};
-        cam_velocity.dy +=
-        if kb.pressed(KeyCode::Up) && (cam_transform.translation.y < map.h as f32 / 2.) {
-			1.
-		} else if kb.pressed(KeyCode::Down) && (cam_transform.translation.y > -map.h as f32 / 2.) {
-			-1.
-		} else {
-			0.
-		};
-        cam_velocity.dz +=
-        if kb.pressed(KeyCode::PageUp) {
-			0.005
-		} else if kb.pressed(KeyCode::PageDown) {
-			-0.005
-		} else {
-			0.
-		};
-        // Transform camera
-        if cam_velocity.dx.abs() > 0.01 {
-            cam_transform.translation.x += (cam_velocity.dx * projection.scale);
-        }
-        if cam_velocity.dy.abs() > 0.01 {
-            cam_transform.translation.y += (cam_velocity.dy * projection.scale);
-        }
-        // Zoom
-        if cam_velocity.dz.abs() > 0.00001 {
-            let mut log_zoom = projection.scale.ln();
-            log_zoom += cam_velocity.dz;
-            projection.scale = if log_zoom.exp() > MAX_ZOOM_SCALE {
-                MAX_ZOOM_SCALE
-            } else if log_zoom.exp() < MIN_ZOOM_SCALE {
-                MIN_ZOOM_SCALE
-            } else {
-                log_zoom.exp()
-            };
-            println!("Zoom level is {}", projection.scale);
-        }
-        // TODO rotation?
-    }
-}
 
 // -- UnitPlugin --------------------------------------------
 
@@ -137,13 +59,16 @@ impl Plugin for UnitPlugin {
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(unit_hover_system)
                 .with_system(unit_movement_system)
+                .with_system(turret_track_and_fire_system)
+                .with_system(unit_pathing_system)
             )
             .add_system_set(SystemSet::new() // Input 
                 // .with_run_criteria(FixedTimestep::step(1. / 60.))
-                .with_system(input_mouse_system)
+                .with_system(inputs::input_mouse_system)
             )
             // Graphics
             .add_system(ui_highlight_selected_system)
+            .add_system(ui_show_path_system)
             // Mechanics
             .add_system(spawn_units_system);
     }
@@ -219,89 +144,88 @@ fn startup_system(
 	commands.insert_resource(window_size);
 }
 
-// Master decoder of units and their properties. TODO convert to table
-fn spawn_units_system(
-    mut ev_spawn: EventReader<SpawnUnitEvent>,
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
+// TODO add these as parameters for various units
+const HEADING_THRESH_BURN: f32 = 0.8;  // Radians
+const DRAG_LATERAL: f32 = 0.97;
+const DRAG_RADIAL: f32 = 0.95;
+const APPROACH_THRESHOLD_REAR: f32 = 100.;
+const APPROACH_THRESHOLD_OMNI: f32 = 5.;
+const THRESH_ARRIVAL: f32 = 5.;
+
+fn unit_pathing_system(
+    mut query: Query<(&Unit, &mut UnitControls, &mut Transform, &Body, &mut Velocity), (With<Velocity>, With<Body>)>,
 ) {
-    for ev in ev_spawn.iter() {
-        println!("Spawning unit owned by Owner {}", ev.owner.id);
-        let mut ec = commands.spawn();
-        ec.insert(Unit {
-            name: ev.unit_type.to_string(),
-            owner: ev.owner.clone(),
-            id:  NUMBER_OF_UNITS.fetch_add(1, Ordering::Relaxed),
-        });
-        ec.insert( Velocity { ..Default::default() } );
-        match &ev.unit_type {
-        UnitType::DefaultUnit => {
-            let unit_size = Vec2::new(762., 1350.);
-            ec.insert(Hp { max: 100, current: 100 } );
-            ec.insert( Body::new(ev.position, unit_size) );
-            ec.insert( UnitControls { ..Default::default() } );
-            ec.insert_bundle( TransformBundle {
-                local: Transform {
-                    translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
-                    scale: Vec3::ONE * SPRITE_SCALE,
-                    rotation: Quat::from_rotation_z((std::f32::consts::PI / 2.) * ev.position.z ),
-                    ..Default::default()
-                },
-                ..Default::default()
-            });
-            // Sprites
-            ec.with_children(|parent| {
-                
-                // Debug sprites
-                parent.spawn_bundle(SpriteBundle {
-                    sprite: Sprite {
-                        color: Color::rgba(1., 0., 0., 0.3),
-                        custom_size: Some(unit_size),
-                        ..Default::default()
-                    },
-                    transform: Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
-                    ..Default::default()
-                }).insert(DebugRect);
-                
-                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
-                    sides: 30,
-                    feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) / 4.),
-                    ..shapes::RegularPolygon::default()
-                },
-                DrawMode::Outlined {
-                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.5)),
-                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.5), 2.),
-                },
-                Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
-                )).insert(DebugSelectionRadius);
+    for (unit, mut controls, mut transform, body, mut velocity ) in query.iter_mut() {
+        if !controls.path.is_empty() {  // For units with a destination
+            let dist_to_dest = (controls.path[0] - body.position.truncate()).length();
+            let target = (controls.path[0] - body.position.truncate()).normalize();
+            let heading = Vec2::new(f32::cos(body.position.z), f32::sin(body.position.z));
+            let cross = target.x * heading.y - target.y * heading.x;
+            let err = 1. - heading.dot(target);
+            println!("Unit {} has cross {} and error {}, norm dist {}", unit.id, cross, err, dist_to_dest / APPROACH_THRESHOLD_REAR);
+            velocity.dw += 
+            if cross > 0.0 {
+                -0.001 * err.min(1.).max(0.1)
+            } else if cross < 0.0 {
+                0.001 * err.min(1.).max(0.1)
+            } else {
+                0.
+            };
+        
+            if cross.abs() < HEADING_THRESH_BURN {  // If we are close enough to the right heading to use rear thrusters
+                // TODO get values from thrusters
+                // Rear thrusters
+                velocity.dx += (heading.x * 0.006) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
+                velocity.dy += (heading.y * 0.006) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
+                // omni thrusters
+                velocity.dx += target.x * 0.01 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
+                velocity.dy += target.y * 0.01 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
 
-                // Sprites
-                parent.spawn_bundle(SpriteBundle {
-                    texture: asset_server.load("ship01.png"),
-                    transform: Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
-                    ..Default::default()
-                });
+            }
 
-            });
+            if dist_to_dest < THRESH_ARRIVAL {
+                controls.path.pop_front();
+            }
+
         }
-        UnitType::Building => {
-            println!("Building not spawned.\n");
-        }
-        other => {
-            println!("Unit not spawned.\n");
-        }
-        };
+    }
+
+}
+
+fn turret_track_and_fire_system(
+    mut query: Query<(&Unit, &mut Targets, &Body, &mut Velocity), With<Turret>>,
+) {
+    for (unit, targets, body, mut velocity) in query.iter_mut() {
+        velocity.dw += 0.001;
+        // println!("Turret {} at {}, {} has velocity {}", unit.id, velocity.dw, body.position.x, body.position.y);
     }
 }
 
 fn unit_movement_system(
-    mut query: Query<(&Unit, &mut Transform, &mut Body ,&mut Velocity), With<Velocity>>,
-    time: Res<Time>
+    mut query: Query<(&mut Transform, &mut Body, &mut Velocity), (With<Velocity>, With<Body>)>,
+    // time: Res<Time>
 ) {
+    for (mut transform, mut body, mut velocity) in query.iter_mut() {
+
+        // Update
+        body.position.x += velocity.dx;
+        body.position.y += velocity.dy;
+        body.position.z += velocity.dw;
+
+        transform.translation.x = body.position.x;
+        transform.translation.y = body.position.y;
+        transform.rotation = Quat::from_rotation_z(body.position.z);
+
+        // Apply drag
+        velocity.dx *= DRAG_LATERAL;
+        velocity.dy *= DRAG_LATERAL;
+        velocity.dw *= DRAG_RADIAL;
+        
+    }
 }
 
 fn unit_hover_system(
-    mut query: Query<(&Unit, &mut Transform, &Body, &Velocity), With<Velocity>>,
+    mut query: Query<(&Unit, &mut Transform, &Body, &Velocity), (With<Velocity>, Without<Subunit>)>,
     time: Res<Time>
 ) {
     for (unit, mut transform, body, vel) in query.iter_mut() {
@@ -310,144 +234,6 @@ fn unit_hover_system(
         let second_order: f32 = f32::sin(t * 0.1 + 8. * unit.id as f32);
         transform.translation.x += SPRITE_SCALE * 0.0001 * body.size.y * f32::sin(t + 10. * unit.id as f32) * second_order;
         transform.translation.y += SPRITE_SCALE * 0.0001 * body.size.x * f32::sin(t + 5. * unit.id as f32) * second_order;
-        // println!("Moving unit {} + {}, {} + {}", body.position.x, vel.dx, body.position.y, vel.dy);
-    }
-}
-
-fn kill_system(
-    query: Query<(&Unit, &Hp), With<Hp>>
-) {
-    for (unit, hp) in query.iter() {
-        // eprintln!("Entity {}{} is owned by {} and has {} HP.", unit.name, unit.id, unit.owner.id, hp.current);
-    }
-}
-
-fn input_mouse_system(
-    mut commands: Commands,
-    mb: Res<Input<MouseButton>>,
-    kb: Res<Input<KeyCode>>,
-    windows: Res<Windows>,
-    mut ui: ResMut<Ui>,
-    mut q_units: Query<(&mut UnitControls, &Transform, &Body, &Unit), With<Unit>>,
-    q_camera: Query<(&OrthographicProjection, &Camera, &GlobalTransform), With<Camera>>,
-    q_rect: Query<Entity, With<SelectionRect>>,
-    q_map: Query<&Map, With<Map>>,
-) {
-    // Delete any existing selection rect UI 
-    for rect in q_rect.iter() {
-        commands.entity(rect).despawn();
-    }
-    
-    // On click
-    if mb.pressed(MouseButton::Left)
-    || mb.just_released(MouseButton::Left)
-    || mb.pressed(MouseButton::Right)
-    || mb.just_released(MouseButton::Right)
-     {  
-        let window = windows.get_primary().unwrap();
-        let map = q_map.single();
-        if let Some(w_pos) = window.cursor_position() {  // If cursor is in window
-            // Convert cursor position to world position
-            let (projection, camera, camera_transform) = q_camera.single();
-            let window_size = Vec2::new(window.width() as f32, window.height() as f32);
-            let ndc: Vec2 = (w_pos / window_size) * 2. - Vec2::ONE;
-            let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
-            let mut m_pos: Vec2 = ndc_to_world.project_point3(ndc.extend(-1.)).truncate();
-            
-            // Prevent selection from exceeding bounds of the world
-            if m_pos[0] < -map.w as f32 / 2. {
-                m_pos[0] = -map.w as f32 / 2.;
-            }
-            else if m_pos[0] > map.w as f32 / 2. {
-                m_pos[0] = map.w as f32 / 2.;
-            }
-            if m_pos[1] < -map.h as f32 / 2. {
-                m_pos[1] = -map.h as f32 / 2.;
-            }
-            else if m_pos[1] > map.h as f32 / 2. {
-                m_pos[1] = map.h as f32 / 2.;
-            }
-            
-            // If drawing selection rectangle or clicking a unit
-            if mb.pressed(MouseButton::Left) {
-                
-                if ui.held_position[0].is_nan() {
-                    ui.held_position = m_pos;
-                    println!("Held position is {}, {}", ui.held_position[0], ui.held_position[1]);
-                }
-
-                // Draw selection rect
-                let mut path_builder = PathBuilder::new();
-                path_builder.move_to(ui.held_position);
-                path_builder.line_to(Vec2::new(ui.held_position[0], m_pos[1]));
-                path_builder.line_to(Vec2::new(m_pos[0], m_pos[1]));
-                path_builder.line_to(Vec2::new(m_pos[0], ui.held_position[1]));
-                path_builder.line_to(ui.held_position);
-                let line = path_builder.build();
-                commands.spawn_bundle(GeometryBuilder::build_as(
-                    &line,
-                    DrawMode::Stroke(StrokeMode::new(
-                        Color::YELLOW,
-                        2.0 * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
-                    )),
-                    Transform { ..Default::default()  },
-                )).insert( SelectionRect );
-            }
-
-            // If selection box needs to be evaluated
-            else if mb.just_released(MouseButton::Left) {
-                let shift: bool = kb.pressed(KeyCode::RShift) || kb.pressed(KeyCode::LShift);
-                let mut clicked_unit = false;
-                // If we clicked a unit, select it instead of evaluating the rectangle
-                for (mut controls, _, body, unit) in q_units.iter_mut() {
-                    if ((m_pos - body.position.truncate()).length() < body.selection_radius) && unit.owner.id == USER_ID {  // TODO multiplayer
-                        println!("Clicked Unit {} {} away", unit.id, (m_pos - body.position.truncate()).length());
-                        if shift {
-                            controls.is_selected = ! controls.is_selected;
-                        } else {
-                            controls.is_selected = true;
-                        }
-                        clicked_unit = true;
-                    }
-                    else {
-                        if !shift {
-                            controls.is_selected = false;
-                        }
-                    }
-                }
-                if clicked_unit { // Do not evaluate rectangle if a unit was clicked
-                    ui.held_position = Vec2::new(f32::NAN, f32::NAN);
-                    return; 
-                }  
-
-                let bb: Vec4 = Vec4::new(
-                    ui.held_position[0].min(m_pos[0]),
-                    ui.held_position[1].max(m_pos[1]),
-                    ui.held_position[0].max(m_pos[0]),
-                    ui.held_position[1].min(m_pos[1]),
-                );
-                println!("Box evaluated! ({}, {}), ({}, {})", bb.x, bb.y, bb.z, bb.w);
-                for (mut controls, _, body, unit) in q_units.iter_mut() {
-                    if (bb.x <= body.position.x && body.position.x <= bb.z) && (bb.y >= body.position.y && body.position.y >= bb.w) {
-                        println!("Unit {} at {}, {} in bounding box.", unit.id, body.position.x, body.position.x);
-                        if unit.owner.id == USER_ID { // TODO multiplayer
-                            println!("Unit {} is now selected!", unit.owner.id);
-                            if shift {
-                                controls.is_selected = ! controls.is_selected;
-                            } else {
-                                controls.is_selected = true;
-                            }
-                        }  
-                    }
-                    else {
-                        if !shift {
-                            controls.is_selected = false;
-                        }
-                    }
-                }
-                ui.held_position = Vec2::new(f32::NAN, f32::NAN);
-            }
-        }
     }
 }
 
@@ -490,7 +276,7 @@ fn map_system(
 
 fn ui_highlight_selected_system(
     mut commands: Commands,
-    q_circ: Query<Entity, With<SelectedCircle>>,
+    q_circ: Query<Entity, With<UnitSelectedCircle>>,
     q_units: Query<(Entity, &UnitControls, &Body, &Unit), With<Unit>>,
     q_camera: Query<&OrthographicProjection, With<Camera>>,
 ) {
@@ -512,8 +298,39 @@ fn ui_highlight_selected_system(
                     outline_mode: StrokeMode::new(Color::GREEN, 20. * projection.scale),
                 },
                 Transform { translation: Vec3::new(0., 0., UI_ZORDER), ..Default::default() },
-            )).insert(SelectedCircle);
+            )).insert(UnitSelectedCircle);
             });
+        }
+    }
+}
+
+fn ui_show_path_system(
+    mut commands: Commands,
+    q_paths: Query<Entity, With<UnitPathDisplay>>,
+    q_units: Query<(&UnitControls, &Body, &Unit), With<Unit>>,
+    q_camera: Query<&OrthographicProjection, With<Camera>>,
+) {
+    for path in q_paths.iter() {
+        commands.entity(path).despawn();
+    }
+    let projection = q_camera.single();
+    for (controls, body, unit) in q_units.iter() {
+        if !controls.path.is_empty() && unit.owner.id == USER_ID {  // Only show paths for friendlies for now
+            // println!("Unit {} has path with {} points", unit.id, controls.path.len());
+            let mut path_builder = PathBuilder::new();
+            path_builder.move_to(body.position.truncate());
+            for point in controls.path.iter() {
+                path_builder.line_to(*point);
+            }
+            let line = path_builder.build();
+            commands.spawn_bundle(GeometryBuilder::build_as(
+                &line,
+                DrawMode::Stroke(StrokeMode::new(
+                    Color::rgba(1., 1., 0., 0.3),
+                    1. * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
+                )),
+                Transform { translation: Vec3::new(0., 0., 5.), ..Default::default() },
+            )).insert( UnitPathDisplay );
         }
     }
 }
