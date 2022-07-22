@@ -1,4 +1,5 @@
-#![allow(unused)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
@@ -21,37 +22,37 @@ fn main() {
 		.add_plugins(DefaultPlugins)
 		.add_plugin(konquer::UnitPlugin)
 		.add_plugin(konquer::KinematicCameraPlugin)
-        .add_startup_system(startup_system)
+        // .add_startup_system(startup_system)
 		.add_startup_system(test_system)
 		.run();
 }
 
-fn startup_system(
-	mut commands: Commands,
-	asset_server: Res<AssetServer>,
-	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-	// mut windows: ResMut<Windows>,
-) {
+// fn startup_system(
+// 	mut commands: Commands,
+// 	asset_server: Res<AssetServer>,
+// 	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+// 	// mut windows: ResMut<Windows>,
+// ) {
 
 
-}
+// }
 
 fn test_system(
 	mut test_spawner: EventWriter<konquer::SpawnUnitEvent>,
 ) {
-	let owner1 = konquer::Owner::new();
-	let owner2 = konquer::Owner::new();
+	let player1 = konquer::Player::new();
+	let player2 = konquer::Player::new();
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(-50., -50., 0.)
+		konquer::UnitType::DefaultUnit, player1.clone(), Vec3::new(-50., -50., 0.)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(0., 0., 0.)
+		konquer::UnitType::DefaultUnit, player1.clone(), Vec3::new(0., 0., 0.)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner1.clone(), Vec3::new(0., -100., 0.5)
+		konquer::UnitType::DefaultUnit, player1.clone(), Vec3::new(0., -100., 0.5)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, owner2.clone(), Vec3::new(100., 100., 0.3)
+		konquer::UnitType::DefaultUnit, player2.clone(), Vec3::new(100., 100., 0.3)
 	));
 }

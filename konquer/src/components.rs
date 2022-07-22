@@ -1,15 +1,25 @@
-use std::collections::VecDeque;
-
-use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}};
-
+use std::{collections::VecDeque, marker::PhantomData};
+use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}};
 use std::{sync::atomic::{AtomicU8, Ordering}};
+use crate::{Player, SPRITE_SCALE};
 
-use crate::{Owner, SPRITE_SCALE};
+
+pub fn get_components_for_entity<'a>(
+    entity: &Entity,
+    archetypes: &'a Archetypes,
+) -> Option<impl Iterator<Item = ComponentId> + 'a> {
+    for archetype in archetypes.iter() {
+        if archetype.entities().contains(entity) {
+            return Some(archetype.components());
+        }
+    }
+    None
+}
 
 #[derive(Component, Clone, Copy)]
 pub struct Map {
     pub w: i32,  // The human-readable name of the unit
-    pub h: i32,  // The owner of the unit
+    pub h: i32,  // The player of the unit
 }
 
 #[derive(Component)]
@@ -93,19 +103,25 @@ pub struct Shield {
 #[derive(Component)]
 pub struct UnitControls {
     pub is_selected: bool,
+    pub is_clickable: bool,
     pub is_movable: bool,
 }
 
-impl UnitControls {
+// TODO Selected by an player?
+#[derive(Component)]
+pub struct Selected;
 
-    pub fn new(movable: bool) -> UnitControls {
-        let uc = UnitControls {
-            is_selected: false,
-            is_movable: movable,
-        };
-        uc
-    }
-}
+#[derive(Component)]
+pub struct Selectable;
+
+
+/*
+Movable means can be given path via manual UI modification. Some units like
+strikecraft move along paths but are not "Movable" by players.
+*/
+#[derive(Component)]
+pub struct Movable;
+
 
 #[derive(Component)]
 pub struct UnitPath {
@@ -118,7 +134,8 @@ impl UnitPath {
     }
 }
 
-type EntityID = u32;
+// Wrapper for Unit references
+pub struct KindedEntity<T>(Entity, PhantomData<T>);
 
 #[derive(Component)]
 pub struct Targets {
@@ -144,15 +161,15 @@ static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
 #[derive(Component)]
 pub struct Unit {
     pub name: String,  // The human-readable name of the unit
-    pub owner: Owner,  // The owner of the unit
+    pub player: Player,  // The player of the unit
     pub id: u8,  // The global identifying number of the unit
 }
 
 impl Unit {
-    pub fn new(name: String, owner: Owner) -> Unit {
+    pub fn new(name: String, player: Player) -> Unit {
         Unit {
             name: name,
-            owner: owner,
+            player: player,
             id: NUMBER_OF_UNITS.fetch_add(1, Ordering::Relaxed)
         }
     }

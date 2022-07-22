@@ -1,6 +1,3 @@
-#[allow(unused_mut)]
-#[allow(unused)]
-#[allow(dead_code)]
 
 use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
 use bevy::core::FixedTimestep;
@@ -20,9 +17,13 @@ use inputs::InputPlugin;
 pub mod camera;
 pub use camera::*;
 
+pub mod ui;
+pub use ui::*;
+
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 
+// TODO parameterize and IO
 const UI_ZORDER: f32 = 20.;
 const UNIT_ZORDER: f32 = 10.;
 const WORLD_ZORDER: f32 = 0.;
@@ -95,16 +96,16 @@ impl fmt::Display for UnitType {
     }
 }
 
-// An owner of a Unit in Konquer
+// An player of a Unit in Konquer
 #[derive(Clone)]
-pub struct Owner {
+pub struct Player {
     id: u8,
 }
 
-impl Owner {
-    pub fn new() -> Owner {
-        // Create a unique Owner ID each time new is called
-        Owner {
+impl Player {
+    pub fn new() -> Player {
+        // Create a unique Player ID each time new is called
+        Player {
             id: NUMBER_OF_OWNERS.fetch_add(1, Ordering::Relaxed),
         }
     }
@@ -112,13 +113,13 @@ impl Owner {
 
 pub struct SpawnUnitEvent {
     unit_type: UnitType,
-    owner: Owner,
+    player: Player,
     position: Vec3,
 }
 
 impl SpawnUnitEvent {
-    pub fn new(unit_type: UnitType, owner: Owner, position: Vec3) -> SpawnUnitEvent {
-        SpawnUnitEvent { unit_type: unit_type, owner: owner, position: position}
+    pub fn new(unit_type: UnitType, player: Player, position: Vec3) -> SpawnUnitEvent {
+        SpawnUnitEvent { unit_type: unit_type, player: player, position: position}
     }
 }
 
@@ -259,65 +260,3 @@ fn map_system(
         }
     });
 }
-
-
-fn ui_highlight_selected_system(
-    mut commands: Commands,
-    q_circ: Query<Entity, With<UnitSelectedCircle>>,
-    q_units: Query<(Entity, &UnitControls, &Body, &Unit), With<Unit>>,
-    q_camera: Query<&OrthographicProjection, With<Camera>>,
-) {
-    for circ in q_circ.iter() {
-        commands.entity(circ).despawn();
-    }
-    let projection = q_camera.single();
-    for (entity, controls, body, unit) in q_units.iter() {
-        if controls.is_selected {
-            let mut ec = commands.entity(entity);
-            ec.with_children(|parent| {
-                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
-                    sides: 30,
-                    feature: shapes::RegularPolygonFeature::Radius((body.size[0] + body.size[1]) / 3.),
-                    ..shapes::RegularPolygon::default()
-                },
-                DrawMode::Outlined {
-                    fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
-                    outline_mode: StrokeMode::new(Color::GREEN, 20. * projection.scale),
-                },
-                Transform { translation: Vec3::new(0., 0., UI_ZORDER), ..Default::default() },
-            )).insert(UnitSelectedCircle);
-            });
-        }
-    }
-}
-
-fn ui_show_path_system(
-    mut commands: Commands,
-    q_paths: Query<Entity, With<UnitPathDisplay>>,
-    q_units: Query<(&Unit, &UnitPath, &Body), With<UnitPath>>,
-    q_camera: Query<&OrthographicProjection, With<Camera>>,
-) {
-    for path in q_paths.iter() {
-        commands.entity(path).despawn();
-    }
-    let projection = q_camera.single();
-    for (unit, path, body) in q_units.iter() {
-        if !path.path.is_empty() && unit.owner.id == USER_ID {  // Only show paths for friendlies for now
-            let mut path_builder = PathBuilder::new();
-            path_builder.move_to(body.position.truncate());
-            for point in path.path.iter() {
-                path_builder.line_to(*point);
-            }
-            let line = path_builder.build();
-            commands.spawn_bundle(GeometryBuilder::build_as(
-                &line,
-                DrawMode::Stroke(StrokeMode::new(
-                    Color::rgba(1., 1., 0., 0.3),
-                    1. * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
-                )),
-                Transform { translation: Vec3::new(0., 0., 5.), ..Default::default() },
-            )).insert( UnitPathDisplay );
-        }
-    }
-}
-

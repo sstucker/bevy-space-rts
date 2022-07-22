@@ -1,23 +1,18 @@
-use bevy::asset;
-#[allow(unused_mut)]
-#[allow(unused)]
-#[allow(dead_code)]
-
-use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
+use bevy::{prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
 use crate::*;
 
-// Master decoder of units and their properties. TODO convert to table
+// Master decoder of units and their properties. TODO I/O
 pub fn spawn_units_system(
     mut ev_spawn: EventReader<SpawnUnitEvent>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
     for ev in ev_spawn.iter() {
-        println!("Spawning unit owned by Owner {}", ev.owner.id);
+        println!("Spawning unit owned by Player {}", ev.player.id);
         let mut ec = commands.spawn();
-        ec.insert(Unit::new(ev.unit_type.to_string(), ev.owner.clone()));
+        ec.insert(Unit::new(ev.unit_type.to_string(), ev.player.clone()));
         ec.insert( Velocity { ..Default::default() } );
         match &ev.unit_type {
 
@@ -25,7 +20,8 @@ pub fn spawn_units_system(
             let unit_size = Vec2::new(1350., 762.);
             ec.insert(Hp { max: 100, current: 100 } );
             ec.insert( Body::new(ev.position, unit_size) );
-            ec.insert( UnitControls::new(true) );
+            ec.insert( Selectable );
+            ec.insert( Movable );
             ec.insert(Targets::new());
             ec.insert(UnitPath::new());
             ec.insert_bundle( TransformBundle {
@@ -104,7 +100,7 @@ fn add_turret(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, displa
             Vec2::new(162., 168.)
         )
     )
-    .insert(Unit::new("Turret".to_string(), Owner { id: USER_ID }))
+    .insert(Unit::new("Turret".to_string(), Player { id: USER_ID }))
     .insert(Subunit)
     .insert(Velocity { ..Default::default() })
     .insert(Range { sight: 1000., fire: 800. })
