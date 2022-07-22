@@ -17,14 +17,21 @@ pub fn spawn_units_system(
         match &ev.unit_type {
 
         UnitType::DefaultUnit => {
+            // TODO bundle
             let unit_size = Vec2::new(1350., 762.);
-            ec.insert(Hp { max: 100, current: 100 } );
+            ec.insert( Hp { max: 100, current: 100 } );
             ec.insert( Body::new(ev.position, unit_size) );
+            ec.insert( Targets::new() );
+            if ev.player.id == USER_ID {
+                ec.insert( Targeterable );
+                ec.insert( Movable );
+            }
+            else {
+                ec.insert( Targeteeable );
+            }
             ec.insert( Selectable );
-            ec.insert( Movable );
-            ec.insert(Targets::new());
-            ec.insert(UnitPath::new());
-            ec.insert_bundle( TransformBundle {
+            ec.insert( UnitPath::new() );
+            ec.insert_bundle(TransformBundle {
                 local: Transform {
                     translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
                     scale: Vec3::ONE * SPRITE_SCALE,

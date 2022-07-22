@@ -63,6 +63,7 @@ impl Plugin for UnitPlugin {
                 .with_system(unit_hover_system)
                 .with_system(unit_movement_system)
                 .with_system(turret_track_and_fire_system)
+                .with_system(turret_target_dispatcher)
                 .with_system(unit_pathing_system)
             )
             .add_system_set(SystemSet::new() // Input 
@@ -180,12 +181,34 @@ fn unit_pathing_system(
 
 }
 
-fn turret_track_and_fire_system(
-    mut query: Query<(&Unit, &mut Targets, &Body, &mut Velocity), With<Turret>>,
+// Passes targets from the parents of turrets to the turrets
+fn turret_target_dispatcher(
+    mut commands: Commands,
+    q_targeters: Query<(Entity, &Children, &Targets), (With<Targets>, Without<Subunit>)>,
+    mut q_targets: Query<&mut Targets, With<Subunit>>
 ) {
-    for (unit, targets, body, mut velocity) in query.iter_mut() {
+    for (entity, children, parent_targets) in q_targeters.iter() {
+        for child in children.iter() {
+            if let Ok(mut turret_targets) = q_targets.get_mut(*child) {
+                turret_targets.deque.clear();
+                for targets in parent_targets.deque.iter() {
+                    turret_targets.deque.push_back(*targets);
+                }
+            }
+        }
+    }
+}
+
+fn turret_track_and_fire_system(
+    mut commands: Commands,
+    mut query: Query<( &Targets, &Body, &mut Velocity), With<Turret>>,
+) {
+    for (targets, body, mut velocity) in query.iter_mut() {
         velocity.dw += 0.001;
-        // println!("Turret {} at {}, {} has velocity {}", unit.id, velocity.dw, body.position.x, body.position.y);
+        // println!("Turret at {}, {} has velocity {}", velocity.dw, body.position.x, body.position.y);
+        for target in targets.deque.iter() {
+            println!("   And has target {}", target.id());
+        }
     }
 }
 

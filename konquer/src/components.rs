@@ -1,5 +1,5 @@
 use std::{collections::VecDeque, marker::PhantomData};
-use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}};
+use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}, utils::tracing::metadata::Kind};
 use std::{sync::atomic::{AtomicU8, Ordering}};
 use crate::{Player, SPRITE_SCALE};
 
@@ -117,29 +117,43 @@ pub struct Selectable;
 
 /*
 Movable means can be given path via manual UI modification. Some units like
-strikecraft move along paths but are not "Movable" by players.
+strikecraft or other Players units move along paths but are not "Movable" by players.
 */
 #[derive(Component)]
 pub struct Movable;
 
+pub type UnitPathNodes = VecDeque<Vec2>;
 
 #[derive(Component)]
 pub struct UnitPath {
-    pub path: VecDeque<Vec2>,
+    pub path: UnitPathNodes,
 }
 
 impl UnitPath {
     pub fn new() -> UnitPath {
-        UnitPath { path: VecDeque::new() }
+        UnitPath { path: UnitPathNodes::new() }
     }
 }
 
 // Wrapper for Unit references
 pub struct KindedEntity<T>(Entity, PhantomData<T>);
 
+/*
+Targeteeable means can be targeted.
+*/
+#[derive(Component)]
+pub struct Targeteeable;
+
+/*
+Targeterable means can be given targets via manual UI modification, not by parents, other Players, or AI.
+*/
+#[derive(Component)]
+pub struct Targeterable;
+
 #[derive(Component)]
 pub struct Targets {
-    pub deque: VecDeque<Entity>  // Deque of targets
+    // pub deque: VecDeque<KindedEntity<Unit>>  // Deque of targets
+    pub deque: VecDeque<Entity>  // TODO figure out how to get KindedEntity pattern to work
 }
 
 impl Targets {

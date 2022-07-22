@@ -43,8 +43,8 @@ pub struct ActionEvent {
 }
 
 pub enum Action {
-    AddTargets(Vec<KindedEntity<Unit>>, Vec<KindedEntity<Unit>>),
-    ClearTargets(Vec<KindedEntity<Unit>>),
+    ModifyTargets(Vec<KindedEntity<Unit>>, Vec<KindedEntity<Unit>>),
+    ModifyPath(Vec<KindedEntity<Unit>>, Vec<UnitPathNodes>),
 }
 
 // InputActions --> GameActions --> Engine logic
@@ -178,6 +178,9 @@ pub fn decode_action_system(
     input_actions: ResMut<InputActions>,
     q_selectable: Query<(Entity, &Body), With<Selectable>>,
     q_selected: Query<&Selected>,
+    mut q_targeterable: Query<&mut Targets, (With<Targeterable>, With<Selected>)>,
+    mut q_targeteeable: Query<(Entity, &Body), With<Targeteeable>>,
+    mut q_movable: Query<&mut UnitPath, (With<Movable>, With<Selected>)>
 ) {
     // Decode mouse actions and enqueue game actions
     match input_actions.mouse {
@@ -210,9 +213,40 @@ pub fn decode_action_system(
         },
         MouseAction::DoubleLeftClick(p, shift) => {
             println!("Double left click at {}, {}", p.x, p.y)
+            // TODO left click batch selection
         },
-        MouseAction::RightClick(p, shift) => {
-            println!("Right click at {}, {}", p.x, p.y)
+        MouseAction::RightClick(click_point, shift) => {
+            println!("Right click at {}, {}", click_point.x, click_point.y);
+            // Either clicked a unit (add a target) or clicked empty space (add a path node)
+            for (entity, body) in q_targeteeable.iter() {
+                if (click_point - body.position.truncate()).length() < body.selection_radius {  // TODO movable per Player?
+                    // Send Add Target Event and return. This needs to run on server
+                    'targets: for mut selected_unit_targets in q_targeterable.iter_mut() {
+                        // TODO interface?
+                        for target in selected_unit_targets.deque.iter() {
+                            if target.id() == entity.id() {
+                                // Don't add a duplicate target
+                                continue 'targets;
+                        };
+                        }
+                        println!("Added {} to targets", entity.id());
+                        selected_unit_targets.deque.push_back(entity);  
+                    }
+                    return;
+                }
+            }
+            // If a path to selected units
+            for mut path in q_movable.iter_mut() {
+                // TODO send message, do this in server logic
+                if shift {
+                    // TODO better interface on path.path?
+                    path.path.push_back(click_point);
+                }
+                else {
+                    path.path.clear();
+                    path.path.push_back(click_point);
+                }
+        }
         },
         MouseAction::DraggingSelection(p1, p2, shift) => {
             // println!("Selection dragging at {}, {}", p2.x, p2.y)
@@ -244,27 +278,4 @@ pub fn decode_action_system(
         },
         MouseAction::NoAction => ()
     }
-    
-    // println!("Right click at {}, {}, shift {}", m_pos.x, m_pos.y, shift);
-    // for (_, _, body, unit) in q_units.iter() {
-    //     if ((m_pos - body.position.truncate()).length() < body.selection_radius) && unit.owner.id != USER_ID {
-    //         println!("Clicked enemy unit {}!", unit.id);
-
-    //         return;
-    //     }
-    // }
-    // // If  a path to selected units
-    // for (mut path, controls) in q_path.iter_mut() {
-    //     if controls.is_selected && controls.is_movable {
-    //         if shift {
-    //             // TODO interface
-    //             path.path.push_back(m_pos);
-    //         }
-    //         else {
-    //             path.path.clear();
-    //             path.path.push_back(m_pos);
-    //         }
-    //     }
-    // }
-
 }
