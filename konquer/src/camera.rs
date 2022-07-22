@@ -83,10 +83,10 @@ fn camera_move_system(
 		};
         // Transform camera
         if cam_velocity.dx.abs() > 0.01 {
-            cam_transform.translation.x += (cam_velocity.dx * projection.scale);
+            cam_transform.translation.x += cam_velocity.dx * projection.scale;
         }
         if cam_velocity.dy.abs() > 0.01 {
-            cam_transform.translation.y += (cam_velocity.dy * projection.scale);
+            cam_transform.translation.y += cam_velocity.dy * projection.scale;
         }
         // Zoom
         if cam_velocity.dz.abs() > 0.00001 {

@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use bevy::{prelude::Component, math::{Vec2, Vec3}};
+use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}};
 
 use std::{sync::atomic::{AtomicU8, Ordering}};
 
@@ -94,7 +94,6 @@ pub struct Shield {
 pub struct UnitControls {
     pub is_selected: bool,
     pub is_movable: bool,
-    pub path: VecDeque<Vec2>,
 }
 
 impl UnitControls {
@@ -103,28 +102,27 @@ impl UnitControls {
         let uc = UnitControls {
             is_selected: false,
             is_movable: movable,
-            path: VecDeque::new()
         };
         uc
     }
+}
 
-    pub fn new_rally(movable: bool, rally: Vec2) -> UnitControls {
-        let mut uc = UnitControls {
-            is_selected: false,
-            is_movable: movable,
-            path: VecDeque::new()
-        };
-        uc.path.push_back(rally);
-        uc
+#[derive(Component)]
+pub struct UnitPath {
+    pub path: VecDeque<Vec2>,
+}
+
+impl UnitPath {
+    pub fn new() -> UnitPath {
+        UnitPath { path: VecDeque::new() }
     }
-
 }
 
 type EntityID = u32;
 
 #[derive(Component)]
 pub struct Targets {
-    pub deque: VecDeque<EntityID>  // Deque of targets
+    pub deque: VecDeque<Entity>  // Deque of targets
 }
 
 impl Targets {

@@ -6,7 +6,7 @@ use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
 use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 
-use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, time::Duration, u32::MAX};
+use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}};
 
 pub mod components;
 pub use components::*;
@@ -15,6 +15,7 @@ pub mod spawner;
 use spawner::*;
 
 pub mod inputs;
+use inputs::InputPlugin;
 
 pub mod camera;
 pub use camera::*;
@@ -52,6 +53,7 @@ impl Plugin for UnitPlugin {
         app
             .insert_resource(Msaa { samples: 4 })
             .add_plugin(ShapePlugin)
+            .add_plugin(InputPlugin)
             .add_event::<SpawnUnitEvent>()
             .add_startup_system(startup_system)
             .add_startup_system_to_stage(StartupStage::PostStartup, map_system)
@@ -120,25 +122,10 @@ impl SpawnUnitEvent {
     }
 }
 
-pub struct Ui {
-    pub held_position: Vec2,
-    pub selected_units: Vec<u8>,
-}
-
-impl Default for Ui {
-    fn default() -> Self {
-        Self {
-            held_position: Vec2::new(f32::NAN, f32::NAN),
-            selected_units: Vec::new(),
-        }
-    }
-}
-
 fn startup_system(
     mut commands: Commands,
     windows: Res<Windows>,
 ) {
-	commands.insert_resource( Ui { ..Default::default() } );
     let window = windows.get_primary().unwrap();
     let window_size = WindowSize::new(window.width(), window.height());
 	commands.insert_resource(window_size);
@@ -153,16 +140,15 @@ const APPROACH_THRESHOLD_OMNI: f32 = 5.;
 const THRESH_ARRIVAL: f32 = 5.;
 
 fn unit_pathing_system(
-    mut query: Query<(&Unit, &mut UnitControls, &mut Transform, &Body, &mut Velocity), (With<Velocity>, With<Body>)>,
+    mut query: Query<(&mut UnitPath, &Body, &mut Velocity), With<UnitPath>>,
 ) {
-    for (unit, mut controls, mut transform, body, mut velocity ) in query.iter_mut() {
-        if !controls.path.is_empty() {  // For units with a destination
-            let dist_to_dest = (controls.path[0] - body.position.truncate()).length();
-            let target = (controls.path[0] - body.position.truncate()).normalize();
+    for (mut path, body, mut velocity ) in query.iter_mut() {
+        if !path.path.is_empty() {  // For units with a destination
+            let dist_to_dest = (path.path[0] - body.position.truncate()).length();
+            let target = (path.path[0] - body.position.truncate()).normalize();
             let heading = Vec2::new(f32::cos(body.position.z), f32::sin(body.position.z));
             let cross = target.x * heading.y - target.y * heading.x;
             let err = 1. - heading.dot(target);
-            println!("Unit {} has cross {} and error {}, norm dist {}", unit.id, cross, err, dist_to_dest / APPROACH_THRESHOLD_REAR);
             velocity.dw += 
             if cross > 0.0 {
                 -0.001 * err.min(1.).max(0.1)
@@ -184,7 +170,8 @@ fn unit_pathing_system(
             }
 
             if dist_to_dest < THRESH_ARRIVAL {
-                controls.path.pop_front();
+                // TODO interface
+                path.path.pop_front();
             }
 
         }
@@ -307,19 +294,18 @@ fn ui_highlight_selected_system(
 fn ui_show_path_system(
     mut commands: Commands,
     q_paths: Query<Entity, With<UnitPathDisplay>>,
-    q_units: Query<(&UnitControls, &Body, &Unit), With<Unit>>,
+    q_units: Query<(&Unit, &UnitPath, &Body), With<UnitPath>>,
     q_camera: Query<&OrthographicProjection, With<Camera>>,
 ) {
     for path in q_paths.iter() {
         commands.entity(path).despawn();
     }
     let projection = q_camera.single();
-    for (controls, body, unit) in q_units.iter() {
-        if !controls.path.is_empty() && unit.owner.id == USER_ID {  // Only show paths for friendlies for now
-            // println!("Unit {} has path with {} points", unit.id, controls.path.len());
+    for (unit, path, body) in q_units.iter() {
+        if !path.path.is_empty() && unit.owner.id == USER_ID {  // Only show paths for friendlies for now
             let mut path_builder = PathBuilder::new();
             path_builder.move_to(body.position.truncate());
-            for point in controls.path.iter() {
+            for point in path.path.iter() {
                 path_builder.line_to(*point);
             }
             let line = path_builder.build();

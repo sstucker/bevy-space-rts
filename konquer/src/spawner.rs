@@ -27,6 +27,7 @@ pub fn spawn_units_system(
             ec.insert( Body::new(ev.position, unit_size) );
             ec.insert( UnitControls::new(true) );
             ec.insert(Targets::new());
+            ec.insert(UnitPath::new());
             ec.insert_bundle( TransformBundle {
                 local: Transform {
                     translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
@@ -49,7 +50,7 @@ pub fn spawn_units_system(
                 // Debug sprites
                 parent.spawn_bundle(SpriteBundle {
                     sprite: Sprite {
-                        color: Color::rgba(1., 0., 0., 0.3),
+                        color: Color::rgba(1., 0., 0., 0.1),
                         custom_size: Some(unit_size),
                         ..Default::default()
                     },
@@ -63,8 +64,8 @@ pub fn spawn_units_system(
                     ..shapes::RegularPolygon::default()
                 },
                 DrawMode::Outlined {
-                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.5)),
-                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.5), 2.),
+                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.2)),
+                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.2), 2.),
                 },
                 Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
                 )).insert(DebugSelectionRadius);
