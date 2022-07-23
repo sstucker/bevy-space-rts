@@ -78,25 +78,6 @@ impl Plugin for UnitPlugin {
     }
 }
 
-// Available units and their names
-pub enum UnitType {
-    DefaultUnit,
-    Tank,
-    Plane,
-    Building,
-}
-
-impl fmt::Display for UnitType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            UnitType::DefaultUnit => write!(f, "DefaultUnit"),
-            UnitType::Tank => write!(f, "Tank"),
-            UnitType::Plane => write!(f, "Plane"),
-            UnitType::Building => write!(f, "Building"),
-        }
-    }
-}
-
 // An player of a Unit in Konquer
 #[derive(Clone)]
 pub struct Player {

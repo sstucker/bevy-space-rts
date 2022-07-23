@@ -3,6 +3,27 @@ use bevy_prototype_lyon::prelude::*;
 
 use crate::*;
 
+// Available units and their names
+pub enum UnitType {
+    DefaultUnit,
+    Tank,
+    Plane,
+    Fighter,
+    Building,
+}
+
+impl fmt::Display for UnitType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UnitType::DefaultUnit => write!(f, "DefaultUnit"),
+            UnitType::Tank => write!(f, "Tank"),
+            UnitType::Fighter => write!(f, "Fighter"),
+            UnitType::Plane => write!(f, "Plane"),
+            UnitType::Building => write!(f, "Building"),
+        }
+    }
+}
+
 // Master decoder of units and their properties. TODO I/O
 pub fn spawn_units_system(
     mut ev_spawn: EventReader<SpawnUnitEvent>,
@@ -31,7 +52,7 @@ pub fn spawn_units_system(
             }
             ec.insert( Selectable );
             ec.insert( UnitPath::new() );
-            ec.insert_bundle(TransformBundle {
+            ec.insert_bundle( TransformBundle {
                 local: Transform {
                     translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
                     scale: Vec3::ONE * SPRITE_SCALE,
@@ -82,7 +103,66 @@ pub fn spawn_units_system(
 
             });
         }
+        UnitType::Fighter => {
+            // TODO bundle
+            let unit_size = Vec2::new(207., 204.);
+            ec.insert( Hp { max: 100, current: 100 } );
+            ec.insert( Body::new(ev.position, unit_size) );
+            ec.insert( Targets::new() );
+            if ev.player.id == USER_ID {
+                ec.insert( Targeterable );
+                ec.insert( Movable );
+            }
+            else {
+                ec.insert( Targeteeable );
+            }
+            ec.insert( Selectable );
+            ec.insert( UnitPath::new() );
+            ec.insert_bundle( TransformBundle {
+                local: Transform {
+                    translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
+                    scale: Vec3::ONE * SPRITE_SCALE,
+                    rotation: Quat::from_rotation_z( ev.position.z ),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
 
+            // Add children
+            ec.with_children(|parent| {
+                
+                // Debug sprites
+                parent.spawn_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::rgba(1., 0., 0., 0.1),
+                        custom_size: Some(unit_size),
+                        ..Default::default()
+                    },
+                    transform: Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
+                    ..Default::default()
+                }).insert(DebugRect);
+                
+                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                    sides: 30,
+                    feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) / 4.),
+                    ..shapes::RegularPolygon::default()
+                },
+                DrawMode::Outlined {
+                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.2)),
+                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.2), 2.),
+                },
+                Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
+                )).insert(DebugSelectionRadius);
+
+                // Sprites
+                parent.spawn_bundle(SpriteBundle {
+                    texture: asset_server.load("fighter1.png"),
+                    transform: Transform { translation: Vec3::new(0., 0., UNIT_ZORDER), ..Default::default() },
+                    ..Default::default()
+                }).insert(MainSprite);
+
+            });
+        }
         UnitType::Building => {
             println!("Building not spawned.\n");
         }

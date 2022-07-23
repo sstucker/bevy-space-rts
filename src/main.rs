@@ -4,6 +4,7 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use konquer::{self, Map, GridLine};
+use konquer::spawner::*;
 
 // Temp Const
 
@@ -44,15 +45,18 @@ fn test_system(
 	let player2 = konquer::Player::new();
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, player1.clone(), Vec3::new(-50., -50., 0.)
+		UnitType::DefaultUnit, player1.clone(), Vec3::new(-50., -50., 0.)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, player1.clone(), Vec3::new(0., 0., 0.)
+		UnitType::DefaultUnit, player1.clone(), Vec3::new(0., 0., 0.)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, player1.clone(), Vec3::new(0., -100., 0.5)
+		UnitType::DefaultUnit, player1.clone(), Vec3::new(0., -100., 0.5)
 	));
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		konquer::UnitType::DefaultUnit, player2.clone(), Vec3::new(100., 100., 0.3)
+		UnitType::Fighter, player1.clone(), Vec3::new(-100., -100., 0.7)
+	));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		UnitType::DefaultUnit, player2.clone(), Vec3::new(100., 100., 0.3)
 	));
 }
