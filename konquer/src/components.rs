@@ -1,5 +1,5 @@
 use std::{collections::VecDeque, marker::PhantomData};
-use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}, utils::tracing::metadata::Kind};
+use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}};
 use std::{sync::atomic::{AtomicU8, Ordering}};
 use crate::{Player, SPRITE_SCALE};
 
@@ -66,7 +66,7 @@ impl Body {
         Body {
             position: position,
             size: size,
-            selection_radius: (size.x + size.y) / 4. * SPRITE_SCALE
+            selection_radius: (size.x + size.y) * SPRITE_SCALE / 4.
         }
     }
 }
@@ -138,6 +138,9 @@ impl UnitPath {
 // Wrapper for Unit references
 pub struct KindedEntity<T>(Entity, PhantomData<T>);
 
+#[derive(Component)]
+pub struct DebugTurretTargetLine;
+
 /*
 Targeteeable means can be targeted.
 */
@@ -179,6 +182,9 @@ pub struct Unit {
     pub id: u8,  // The global identifying number of the unit
 }
 
+/*
+Anything that can be manually constructed, fire or move is a unit. Passive structures are not units.
+*/
 impl Unit {
     pub fn new(name: String, player: Player) -> Unit {
         Unit {
@@ -189,5 +195,21 @@ impl Unit {
     }
 }
 
+/*
+A subunit is a child of single unit. Usually this is a module with its own sprite and
+behavior, like a turret, engine, or additional hitbox. FlockMembers are NOT Subunits.
+Subunits are translated and rotated by independent systems.
+*/
 #[derive(Component)]
-pub struct Subunit;
+pub struct Subunit {
+    pub relative_position: Vec3,
+}
+
+impl Subunit {
+    pub fn get_absolute_position(&self, subunit_position: Vec3, parent_position: Vec3) -> Vec3 {
+        let mut abs_pos: Vec3 = Vec3::from(parent_position);
+        abs_pos.x += subunit_position.x * f32::cos(parent_position.z) - subunit_position.y * f32::sin(parent_position.z);
+        abs_pos.y += subunit_position.x * f32::sin(parent_position.z) + subunit_position.y * f32::cos(parent_position.z);
+        abs_pos
+    }
+}

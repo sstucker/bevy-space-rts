@@ -55,7 +55,6 @@ pub fn spawn_units_system(
             ec.insert_bundle( TransformBundle {
                 local: Transform {
                     translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
-                    scale: Vec3::ONE * SPRITE_SCALE,
                     rotation: Quat::from_rotation_z( ev.position.z ),
                     ..Default::default()
                 },
@@ -68,14 +67,14 @@ pub fn spawn_units_system(
                 // TODO thrusters
 
                 // Hardpoints
-                add_turret(parent, &asset_server, Vec2::new(460., 0.));
-                add_turret(parent, &asset_server, Vec2::new(-110., 0.));
+                add_turret(parent, &asset_server, Vec3::new(460., 0., 0.));
+                add_turret(parent, &asset_server, Vec3::new(-110., 0., 0.));
 
                 // Debug sprites
                 parent.spawn_bundle(SpriteBundle {
                     sprite: Sprite {
-                        color: Color::rgba(1., 0., 0., 0.1),
-                        custom_size: Some(unit_size),
+                        color: Color::rgba(1., 0., 0., 0.01),
+                        custom_size: Some(unit_size * SPRITE_SCALE),
                         ..Default::default()
                     },
                     transform: Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
@@ -84,12 +83,12 @@ pub fn spawn_units_system(
                 
                 parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
                     sides: 30,
-                    feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) / 4.),
+                    feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) * SPRITE_SCALE / 4.),
                     ..shapes::RegularPolygon::default()
                 },
                 DrawMode::Outlined {
-                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.2)),
-                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.2), 2.),
+                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.1)),
+                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.), 2.),
                 },
                 Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
                 )).insert(DebugSelectionRadius);
@@ -97,76 +96,16 @@ pub fn spawn_units_system(
                 // Sprites
                 parent.spawn_bundle(SpriteBundle {
                     texture: asset_server.load("ship1.png"),
-                    transform: Transform { translation: Vec3::new(0., 0., UNIT_ZORDER), ..Default::default() },
-                    ..Default::default()
-                }).insert(MainSprite);
-
-            });
-        }
-        UnitType::Fighter => {
-            // TODO bundle
-            let unit_size = Vec2::new(207., 204.);
-            ec.insert( Hp { max: 100, current: 100 } );
-            ec.insert( Body::new(ev.position, unit_size) );
-            ec.insert( Targets::new() );
-            if ev.player.id == USER_ID {
-                ec.insert( Targeterable );
-                ec.insert( Movable );
-            }
-            else {
-                ec.insert( Targeteeable );
-            }
-            ec.insert( Selectable );
-            ec.insert( UnitPath::new() );
-            ec.insert_bundle( TransformBundle {
-                local: Transform {
-                    translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
-                    scale: Vec3::ONE * SPRITE_SCALE,
-                    rotation: Quat::from_rotation_z( ev.position.z ),
-                    ..Default::default()
-                },
-                ..Default::default()
-            });
-
-            // Add children
-            ec.with_children(|parent| {
-                
-                // Debug sprites
-                parent.spawn_bundle(SpriteBundle {
                     sprite: Sprite {
-                        color: Color::rgba(1., 0., 0., 0.1),
-                        custom_size: Some(unit_size),
+                        custom_size: Some(unit_size * SPRITE_SCALE),
                         ..Default::default()
                     },
-                    transform: Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
-                    ..Default::default()
-                }).insert(DebugRect);
-                
-                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
-                    sides: 30,
-                    feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) / 4.),
-                    ..shapes::RegularPolygon::default()
-                },
-                DrawMode::Outlined {
-                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.2)),
-                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.2), 2.),
-                },
-                Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
-                )).insert(DebugSelectionRadius);
-
-                // Sprites
-                parent.spawn_bundle(SpriteBundle {
-                    texture: asset_server.load("fighter1.png"),
                     transform: Transform { translation: Vec3::new(0., 0., UNIT_ZORDER), ..Default::default() },
                     ..Default::default()
                 }).insert(MainSprite);
 
             });
         }
-        UnitType::Building => {
-            println!("Building not spawned.\n");
-        }
-
         other => {
             println!("Unit not spawned.\n");
         }
@@ -175,20 +114,29 @@ pub fn spawn_units_system(
     }
 }
 
-fn add_turret(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, displacement: Vec2) {
+fn add_turret(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, relative_pos: Vec3) {
+    let subunit_size = Vec2::new(162., 168.);
     parent.spawn_bundle(SpriteBundle {
         texture: asset_server.load("turret1.png"),
-        transform: Transform { translation: Vec3::new(displacement.x, displacement.y, UNIT_ZORDER + 1.), ..Default::default() },
+        sprite: Sprite {
+            custom_size: Some(subunit_size * SPRITE_SCALE),
+            ..Default::default()
+        },
+        transform: Transform {
+            translation: Vec3::new(relative_pos.x * SPRITE_SCALE, relative_pos.y * SPRITE_SCALE, UNIT_ZORDER + 1.),
+            rotation: Quat::from_rotation_z( relative_pos.z ),
+             ..Default::default()
+            },
         ..Default::default()
     })
     .insert(
         Body::new(
-            Vec3::new(displacement.x, displacement.y, 0.),
-            Vec2::new(162., 168.)
+            Vec3::new(relative_pos.x * SPRITE_SCALE, relative_pos.y * SPRITE_SCALE, relative_pos.z),
+            subunit_size
         )
     )
     .insert(Unit::new("Turret".to_string(), Player { id: USER_ID }))
-    .insert(Subunit)
+    .insert(Subunit { relative_position: Vec3::new(relative_pos.x, relative_pos.y, 0.) } )
     .insert(Velocity { ..Default::default() })
     .insert(Range { sight: 1000., fire: 800. })
     .insert(Targets::new())

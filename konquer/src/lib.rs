@@ -3,7 +3,7 @@ use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
 use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 
-use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}};
+use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, f32::consts::PI};
 
 pub mod components;
 pub use components::*;
@@ -60,7 +60,6 @@ impl Plugin for UnitPlugin {
             .add_startup_system_to_stage(StartupStage::PostStartup, map_system)
             .add_system_set(SystemSet::new()  // Unit updates
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
-                .with_system(unit_hover_system)
                 .with_system(unit_movement_system)
                 .with_system(turret_track_and_fire_system)
                 .with_system(turret_target_dispatcher)
@@ -134,9 +133,9 @@ fn unit_pathing_system(
             let err = 1. - heading.dot(target);
             velocity.dw += 
             if cross > 0.0 {
-                -0.001 * err.min(1.).max(0.1)
+                -0.001 * err.sqrt().min(1.).max(0.1)
             } else if cross < 0.0 {
-                0.001 * err.min(1.).max(0.1)
+                0.001 * err.sqrt().min(1.).max(0.1)
             } else {
                 0.
             };
@@ -162,39 +161,106 @@ fn unit_pathing_system(
 
 }
 
-// Passes targets from the parents of turrets to the turrets
+// Passes targets to subunits
 fn turret_target_dispatcher(
     mut commands: Commands,
     q_targeters: Query<(Entity, &Children, &Targets), (With<Targets>, Without<Subunit>)>,
     mut q_targets: Query<&mut Targets, With<Subunit>>
 ) {
-    for (entity, children, parent_targets) in q_targeters.iter() {
+    for (parent_entity, children, parent_targets) in q_targeters.iter() {
         for child in children.iter() {
-            if let Ok(mut turret_targets) = q_targets.get_mut(*child) {
-                turret_targets.deque.clear();
-                for targets in parent_targets.deque.iter() {
-                    turret_targets.deque.push_back(*targets);
+            if let Ok(mut child_targets) = q_targets.get_mut(*child) {
+                // child_targets.deque.clear();
+                // TODO child target clearing
+                // TODO prioritization based on distance
+                'targets: for parent_target in parent_targets.deque.iter() {
+                    for child_target in child_targets.deque.iter() {
+                        if child_target.id() == parent_target.id() {
+                            // Don't add a duplicate target
+                            continue 'targets;
+                        }
+                    }
+                    child_targets.deque.push_back(*parent_target);
                 }
             }
         }
     }
 }
 
+
+const TURRET_ON_TARGET_THRESH: f32 = 0.001;  // radians
+
 fn turret_track_and_fire_system(
     mut commands: Commands,
-    mut query: Query<( &Targets, &Body, &mut Velocity), With<Turret>>,
+    mut q_turret: Query<(&Parent, &Targets, &Subunit, &mut Velocity, &Body), With<Turret>>,
+    q_body: Query<&Body>,
+    q_debug_graphics: Query<Entity, With<DebugTurretTargetLine>>,
 ) {
-    for (targets, body, mut velocity) in query.iter_mut() {
-        velocity.dw += 0.001;
-        // println!("Turret at {}, {} has velocity {}", velocity.dw, body.position.x, body.position.y);
-        for target in targets.deque.iter() {
-            println!("   And has target {}", target.id());
+    for line in q_debug_graphics.iter() {
+        commands.entity(line).despawn();
+    }
+    for (turret_parent, targets, subunit, mut turret_velocity, turret_body) in q_turret.iter_mut() {
+        for target_entity in targets.deque.iter() {
+            if let Ok(target_body) = q_body.get(*target_entity) {
+                if let Ok(turret_parent_body) = q_body.get(turret_parent.0) {
+                    let heading = Vec2::new(f32::cos(turret_body.position.z + turret_parent_body.position.z), f32::sin(turret_body.position.z + turret_parent_body.position.z));
+                    let abs_turret_pos = subunit.get_absolute_position(turret_body.position, turret_parent_body.position);
+                    let dist_to_dest = (target_body.position.truncate() - abs_turret_pos.truncate()).length();
+                    let target = (target_body.position.truncate() - abs_turret_pos.truncate()).normalize();
+                    let cross = target.x * heading.y - target.y * heading.x;
+                    let err = 1. - heading.dot(target);
+                    
+                    // DEBUG GRAPHICS
+                    let mut path_builder = PathBuilder::new();
+                    path_builder.move_to(abs_turret_pos.truncate());
+                    path_builder.line_to(target_body.position.truncate());
+                    let line = path_builder.build();
+                    commands.spawn_bundle(GeometryBuilder::build_as(
+                        &line,
+                        DrawMode::Stroke(StrokeMode::new(
+                            Color::rgba(1., 0., 0., 0.7),
+                            1.  // Always draw the same thickness of UI elements regardless of zoom
+                        )),
+                        Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                    )).insert( DebugTurretTargetLine );                    
+                    let mut path_builder = PathBuilder::new();
+                    path_builder.move_to(abs_turret_pos.truncate());
+                    path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
+                    // path_builder.line_to(target_body.position.truncate());
+                    let line = path_builder.build();
+                    commands.spawn_bundle(GeometryBuilder::build_as(
+                        &line,
+                        DrawMode::Stroke(StrokeMode::new(
+                            Color::rgba(0., 1., 0., 0.5),
+                            3.  // Always draw the same thickness of UI elements regardless of zoom
+                        )),
+                        Transform { translation: Vec3::new(0., 0., 150.), ..Default::default() },
+                    )).insert( DebugTurretTargetLine );
+                    println!("Error {} Cross {}", err, cross);
+                    if cross.abs() > TURRET_ON_TARGET_THRESH {
+                        turret_velocity.dw = 
+                        if cross > 0.0 {
+                            -0.1 * err.sqrt().min(1.)
+                        } else if cross < 0.0 {
+                            0.1 * err.sqrt().min(1.)
+                        } else {
+                            0.
+                        };  
+                    }
+                }
+                else {
+                    println!("Could not get turret parent body")
+                }
+            }
+            else {
+                println!("Could not get target body")
+            }
         }
     }
 }
 
 fn unit_movement_system(
-    mut query: Query<(&mut Transform, &mut Body, &mut Velocity), (With<Velocity>, With<Body>)>,
+    mut query: Query<(&mut Transform, &mut Body, &mut Velocity)>,
     // time: Res<Time>
 ) {
     for (mut transform, mut body, mut velocity) in query.iter_mut() {
@@ -202,7 +268,9 @@ fn unit_movement_system(
         // Update
         body.position.x += velocity.dx;
         body.position.y += velocity.dy;
-        body.position.z += velocity.dw;
+        body.position.z = (body.position.z + velocity.dw).rem_euclid(2. * PI);
+
+        // println!("Entity at {}, {}, {}", body.position.x, body.position.y, body.position.z);
 
         transform.translation.x = body.position.x;
         transform.translation.y = body.position.y;
@@ -213,19 +281,6 @@ fn unit_movement_system(
         velocity.dy *= DRAG_LATERAL;
         velocity.dw *= DRAG_RADIAL;
         
-    }
-}
-
-fn unit_hover_system(
-    mut query: Query<(&Unit, &mut Transform, &Body, &Velocity), (With<Velocity>, Without<Subunit>)>,
-    time: Res<Time>
-) {
-    for (unit, mut transform, body, vel) in query.iter_mut() {
-        // Randomly oscillate units around by some percentage of their size
-        let t = time.seconds_since_startup() as f32;
-        let second_order: f32 = f32::sin(t * 0.1 + 8. * unit.id as f32);
-        transform.translation.x += SPRITE_SCALE * 0.0001 * body.size.y * f32::sin(t + 10. * unit.id as f32) * second_order;
-        transform.translation.y += SPRITE_SCALE * 0.0001 * body.size.x * f32::sin(t + 5. * unit.id as f32) * second_order;
     }
 }
 

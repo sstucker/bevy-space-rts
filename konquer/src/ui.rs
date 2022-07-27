@@ -17,13 +17,13 @@ pub fn ui_highlight_selected_system(
         let mut ec = commands.entity(entity);
         ec.with_children(|parent| {
             parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
-                sides: 30,
-                feature: shapes::RegularPolygonFeature::Radius((body.size[0] + body.size[1]) / 3.),
+                sides: 60,
+                feature: shapes::RegularPolygonFeature::Radius((body.size[0] + body.size[1]) * SPRITE_SCALE / 3.),
                 ..shapes::RegularPolygon::default()
             },
             DrawMode::Outlined {
                 fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
-                outline_mode: StrokeMode::new(Color::GREEN, 20. * projection.scale),
+                outline_mode: StrokeMode::new(Color::GREEN, 1. * projection.scale),
             },
             Transform { translation: Vec3::new(0., 0., UI_ZORDER), ..Default::default() },
         )).insert(UnitSelectedCircle);
