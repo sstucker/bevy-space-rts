@@ -17,6 +17,9 @@ use inputs::InputPlugin;
 pub mod camera;
 pub use camera::*;
 
+pub mod loader;
+pub use loader::*;
+
 pub mod ui;
 pub use ui::*;
 
@@ -55,6 +58,7 @@ impl Plugin for UnitPlugin {
             .insert_resource(Msaa { samples: 4 })
             .add_plugin(ShapePlugin)
             .add_plugin(InputPlugin)
+            .add_plugin(AssetLoaderPlugin)
             .add_event::<SpawnUnitEvent>()
             .add_startup_system(startup_system)
             .add_startup_system_to_stage(StartupStage::PostStartup, map_system)

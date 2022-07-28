@@ -1,0 +1,11 @@
+{
+    "name": "Assembly1",
+    "platform": "ship1",
+    "loadout": [
+        "turret1",
+        "turret1",
+        "thruster1",
+        "thruster1",
+        "thruster1"
+    ]
+}

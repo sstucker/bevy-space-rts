@@ -117,7 +117,7 @@ pub fn spawn_units_system(
 fn add_turret(parent: &mut ChildBuilder, asset_server: &Res<AssetServer>, relative_pos: Vec3) {
     let subunit_size = Vec2::new(162., 168.);
     parent.spawn_bundle(SpriteBundle {
-        texture: asset_server.load("turret1.png"),
+        texture: asset_server.load("data/subunits/turret1/turret1.png"),
         sprite: Sprite {
             custom_size: Some(subunit_size * SPRITE_SCALE),
             ..Default::default()

@@ -1,0 +1,59 @@
+{
+    "name": "ship1",
+    "class": "frigate",
+    "hp": 100,
+    "sight-radius": 1000.0,
+    "range-radius": 500.0,
+    "forward-burn-threshold": 10.0,
+    "lateral-drag": 0.97,
+    "radial-drag": 0.95,
+    "teamcolor-sprite": {
+        "texture": "layer1_teamcolor",
+        "size": [1350.0, 762.0],
+        "z-order": 1
+    },
+    "sprites": [{
+            "texture": "layer2.png",
+            "size": [1350.0, 762.0],
+            "z-order": 2
+        },
+        {
+            "texture": "layer3.png",
+            "size": [1350.0, 762.0],
+            "z-order": 3
+        }
+    ],
+    "hardpoints": [{
+            "type": "turret",
+            "class": 2,
+            "z-order": 1,
+            "position": [460.0, 0.0, 0.0],
+            "angle-range": [0.0, 360.0]
+        },
+        {
+            "type": "turret",
+            "class": 2,
+            "z-order": 1,
+            "position": [-110.0, 0.0, 0.0],
+            "angle-range": [0.0, 360.0]
+        },
+        {
+            "type": "thruster",
+            "class": 1,
+            "z-order": 0,
+            "position": [-500.0, 20.0, 0.0]
+        },
+        {
+            "type": "thruster",
+            "class": 1,
+            "z-order": 0,
+            "position": [-500.0, -20.0, 0.0]
+        },
+        {
+            "type": "thruster",
+            "class": 1,
+            "z-order": 2,
+            "position": [-400.0, 0.0, 0.0]
+        }
+    ]
+}
