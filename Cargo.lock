@@ -281,6 +281,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_common_assets"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee54fbfa93cd4902bde0c0de8ab272b82bf341868855db82710c88b069b7c1cc"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "serde",
+]
+
+[[package]]
 name = "bevy_core"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1810,7 +1821,6 @@ name = "konquer"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy_prototype_debug_lines",
  "bevy_prototype_lyon",
 ]
 
@@ -1819,6 +1829,7 @@ name = "konquer-rts"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_common_assets",
  "bevy_prototype_debug_lines",
  "bevy_prototype_lyon",
  "fixed",

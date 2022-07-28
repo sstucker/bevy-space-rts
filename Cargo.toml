@@ -12,6 +12,7 @@ rand = "0.8.5"
 konquer = { path = "konquer" }
 bevy_prototype_lyon = "0.5.0"
 bevy_prototype_debug_lines = "0.7.2"
+bevy_common_assets = "0.2.0"
 
 [workspace]
 resolver = "2"

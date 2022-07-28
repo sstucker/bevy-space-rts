@@ -1,0 +1,30 @@
+{
+    "name": "ship1",
+    "class": "frigate",
+    "hp": 100,
+    "sight-radius": 1000.0,
+    "range-radius": 500.0,
+    "sprites": [
+        {
+            "texture": "ship1.png",
+            "size":  [1350.0, 762.0],   
+            "z-order": 0
+        }
+    ],
+    "hardpoints": [
+        {
+            "type": "turret",
+            "class": 2,
+            "z-order": 1,
+            "position": [460.0, 0.0, 0.0],
+            "angle-range": [0.0, 360.0]
+        },
+        {
+            "type": "turret",
+            "class": 2,
+            "z-order": 1,
+            "position": [-110.0, 0.0, 0.0],
+            "angle-range": [0.0, 360.0]
+        }
+    ]
+}
