@@ -240,7 +240,7 @@ fn turret_track_and_fire_system(
                         )),
                         Transform { translation: Vec3::new(0., 0., 150.), ..Default::default() },
                     )).insert( DebugTurretTargetLine );
-                    println!("Error {} Cross {}", err, cross);
+                    // println!("Error {} Cross {}", err, cross);
                     if cross.abs() > TURRET_ON_TARGET_THRESH {
                         turret_velocity.dw = 
                         if cross > 0.0 {
