@@ -1,6 +1,6 @@
 {
     "name": "ship1",
-    "class": "frigate",
+    "type": "capital-frigate",
     "hp": 100,
     "sight-radius": 1000.0,
     "range-radius": 500.0,
@@ -9,17 +9,17 @@
     "radial-drag": 0.95,
     "teamcolor-sprite": {
         "texture": "layer1_teamcolor",
-        "size": [1350.0, 762.0],
+        "size": [1392.0, 732.0],
         "z-order": 1
     },
     "sprites": [{
             "texture": "layer2.png",
-            "size": [1350.0, 762.0],
+            "size": [1392.0, 732.0],
             "z-order": 2
         },
         {
             "texture": "layer3.png",
-            "size": [1350.0, 762.0],
+            "size": [1392.0, 732.0],
             "z-order": 3
         }
     ],

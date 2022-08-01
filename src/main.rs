@@ -45,7 +45,7 @@ fn test_system(
 	let player2 = konquer::Player::new();
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		UnitType::DefaultUnit, player1.clone(), Vec3::new(-50., -50., 0.)
+		"Frigate1".to_string(), player1.clone(), Vec3::new(-50., -50., 0.)
 	));
 	// test_spawner.send(konquer::SpawnUnitEvent::new(
 	// 	UnitType::DefaultUnit, player1.clone(), Vec3::new(0., 0., 0.)
@@ -56,7 +56,7 @@ fn test_system(
 	// test_spawner.send(konquer::SpawnUnitEvent::new(
 	// 	UnitType::Fighter, player1.clone(), Vec3::new(-100., -100., 0.7)
 	// ));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		UnitType::DefaultUnit, player2.clone(), Vec3::new(300., -150., 0.3)
-	));
+	// test_spawner.send(konquer::SpawnUnitEvent::new(
+	// 	UnitType::Frigate1, player2.clone(), Vec3::new(300., -150., 0.3)
+	// ));
 }

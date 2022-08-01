@@ -9,7 +9,7 @@ pub mod components;
 pub use components::*;
 
 pub mod spawner;
-use spawner::*;
+pub use spawner::*;
 
 pub mod inputs;
 use inputs::InputPlugin;
@@ -85,6 +85,7 @@ impl Plugin for UnitPlugin {
 #[derive(Clone)]
 pub struct Player {
     id: u8,
+    teamcolor: Color
 }
 
 impl Player {
@@ -92,19 +93,8 @@ impl Player {
         // Create a unique Player ID each time new is called
         Player {
             id: NUMBER_OF_OWNERS.fetch_add(1, Ordering::Relaxed),
+            teamcolor: Color::rgb(0., 0., 1.),  // TODO from table
         }
-    }
-}
-
-pub struct SpawnUnitEvent {
-    unit_type: UnitType,
-    player: Player,
-    position: Vec3,
-}
-
-impl SpawnUnitEvent {
-    pub fn new(unit_type: UnitType, player: Player, position: Vec3) -> SpawnUnitEvent {
-        SpawnUnitEvent { unit_type: unit_type, player: player, position: position}
     }
 }
 

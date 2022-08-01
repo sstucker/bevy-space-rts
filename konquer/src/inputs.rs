@@ -57,7 +57,7 @@ impl Plugin for InputPlugin {
             .add_event::<ActionEvent>()
             .add_system(ui_selection_rect_system)
             .add_system_set(SystemSet::new() // Input 
-                .with_run_criteria(FixedTimestep::step(1. / 60.))  // VSYNC
+                .with_run_criteria(FixedTimestep::step(1. / 60.))  // VSYNC ?
                 .with_system(inputs::input_mouse_system)
                 .with_system(inputs::decode_action_system)
             );

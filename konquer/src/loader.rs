@@ -11,15 +11,25 @@ use crate::*;
 
 pub struct AssetLoaderPlugin;
 
-pub struct UnitDataElement {
-    name: String,
-    platform: PlatformData,
-    loadout: Vec<SubunitData>
+pub struct UnitData {
+    pub name: String,
+    pub platform: PlatformData,
+    pub loadout: Vec<SubunitData>
+}
+
+impl UnitData {
+    pub fn new(name: String, platform_data: PlatformData, subunit_data: Vec<SubunitData>) -> Self {
+        Self {
+            name: name,
+            platform: platform_data,
+            loadout: subunit_data
+        }
+    }
 }
 
 
 pub struct UnitDataCollection {
-    collection: std::collections::HashMap<String, UnitDataElement>,
+    collection: std::collections::HashMap<String, UnitData>,
 }
 
 impl UnitDataCollection {
@@ -28,12 +38,12 @@ impl UnitDataCollection {
         Self { collection: std::collections::HashMap::new() }
     }
 
-    pub fn insert(&mut self, name: String, element: UnitDataElement) {
+    pub fn insert(&mut self, name: String, element: UnitData) {
         self.collection.insert(name, element);
     }
 
-    pub fn get(&self, key: String) -> &UnitDataElement {
-        self.collection.get(&key).unwrap()
+    pub fn get(&self, key: &String) -> Option<&UnitData> {
+        self.collection.get(key)
     }
 
 }
@@ -74,8 +84,8 @@ impl SubunitRegistry {
     pub fn insert(&mut self, name: String, element: SubunitData) {
         self.collection.insert(name, element);
     }
-    pub fn get(&self, key: String) -> &SubunitData {
-        self.collection.get(&key).unwrap()
+    pub fn get(&self, key: &String) -> Option<&SubunitData> {
+        self.collection.get(key)
     }
 }
 
@@ -84,15 +94,15 @@ pub struct PlatformRegistry {
 }
 
 impl PlatformRegistry {
-pub fn new() -> Self {
-    Self { collection: std::collections::HashMap::new() }
-}
-pub fn insert(&mut self, name: String, element: PlatformData) {
-    self.collection.insert(name, element);
-}
-pub fn get(&self, key: String) -> &PlatformData {
-    self.collection.get(&key).unwrap()
-}
+    pub fn new() -> Self {
+        Self { collection: std::collections::HashMap::new() }
+    }
+    pub fn insert(&mut self, name: String, element: PlatformData) {
+        self.collection.insert(name, element);
+    }
+    pub fn get(&self, key: &String) -> Option<&PlatformData> {
+        self.collection.get(key)
+    }
 }
 
 
@@ -151,8 +161,13 @@ fn load_subunits_system(
                     let data: SubunitData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
                         panic!("Could not deserialize {}: {:?}", path.display(), err);
                     });
-                    println!("       Imported Subunit {:?}", data["name"].as_str().unwrap());
-                    registry.insert(data["name"].to_string(), data);
+                    if let Some(v) = data.get("name") {
+                        if let Some(vs) = v.as_str() {
+                            let subunit_name = String::from(vs);
+                            println!("       Imported Subunit {:?}", subunit_name);
+                            registry.insert(subunit_name, data);
+                        }
+                    }
                 }  
             },
             Err(e) => eprintln!("{:?}", e),
@@ -170,8 +185,10 @@ fn load_platforms_system(
                     let data: PlatformData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
                         panic!("Could not deserialize {}: {:?}", path.display(), err);
                     });
-                    println!("       Imported Platform {:?}", data["name"].as_str().unwrap());
-                    registry.insert(data["name"].to_string(), data);
+                    if let Some(platform_name) = data.get("name") {
+                        println!("       Imported Platform {:?}", platform_name.to_string().replace("\"", ""));
+                        registry.insert(platform_name.to_string().replace("\"", ""), data);
+                    }
                 }  
             },
             Err(e) => eprintln!("{:?}", e),
@@ -183,14 +200,35 @@ fn create_unit_data_system(
     platform_registry: Res<PlatformRegistry>,
     subunit_registry: Res<SubunitRegistry>,
     assembly_registry: Res<AssemblyRegistry>,
-    unit_data: ResMut<UnitDataCollection>,
+    mut unit_data: ResMut<UnitDataCollection>,
 ) {
     println!("Loading Unit Data...");
-    for assembly in assembly_registry.assemblies.iter() {
+    'assemblies: for assembly in assembly_registry.assemblies.iter() {
         println!("    Loading unit {}", assembly.name);
         println!("        Assembling on platform {}", assembly.platform);
-        for subunit_name in assembly.loadout.iter() {
-            println!("        Assembling from subunit {}", subunit_name);
+        if let Some(platform) = platform_registry.get(&assembly.platform).clone(){
+            let mut loadout: Vec<SubunitData> = Vec::new();
+            for subunit_name in assembly.loadout.iter() {
+                println!("        Assembling from subunit {}", subunit_name);
+                if let Some(subunit) = subunit_registry.get(subunit_name) {
+                    loadout.push(subunit.clone());
+                }
+                else {
+                    eprintln!("        ...Loading failed. Could not resolve subunit '{}'", subunit_name);
+                    continue 'assemblies  // Give up on loading this Unit
+                }
+            }
+            unit_data.insert(
+                assembly.name.clone(),
+                UnitData {
+                    name: assembly.name.clone(),
+                    platform: platform.clone(),
+                    loadout: loadout,
+                }
+            )
+        }
+        else {
+            eprintln!("        ...Loading failed. Could not resolve platform '{}'", assembly.platform);
         }
     }
 }

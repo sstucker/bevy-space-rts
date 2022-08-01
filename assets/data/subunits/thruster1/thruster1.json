@@ -1,0 +1,12 @@
+{
+    "name": "thruster1",
+    "type": "aft-nuclear-thruster",
+    "class": 1,
+    "sprites": [{
+            "texture": "thruster1.png",
+            "size": [102.0, 100.0],
+            "z-order": 0
+        }
+
+    ]
+}
