@@ -3,7 +3,7 @@ use serde_json;
 use serde::{Deserialize, Serialize};
 use glob;
 
-use std::{fs, collections::HashMap};
+use std::{fs, collections::HashMap, iter::zip};
 
 use bevy::prelude::*;
 
@@ -208,10 +208,18 @@ fn create_unit_data_system(
         println!("        Assembling on platform {}", assembly.platform);
         if let Some(platform) = platform_registry.get(&assembly.platform).clone(){
             let mut loadout: Vec<SubunitData> = Vec::new();
-            for subunit_name in assembly.loadout.iter() {
+            for (subunit_name, hardpoint) in zip(assembly.loadout.iter(), platform["hardpoints"].as_array().unwrap()) {
                 println!("        Assembling from subunit {}", subunit_name);
                 if let Some(subunit) = subunit_registry.get(subunit_name) {
-                    loadout.push(subunit.clone());
+                    // Verify that the hardpoint fits the subunit
+                    if subunit["type"].as_str().unwrap() == hardpoint["type"].as_str().unwrap()
+                    && subunit["class"].as_i64().unwrap() == hardpoint["class"].as_i64().unwrap() {
+                        loadout.push(subunit.clone());
+                    }
+                    else {
+                        eprintln!("        ...Loading failed. Invalid hardpoint '{}'", subunit_name);
+                        continue 'assemblies
+                    }
                 }
                 else {
                     eprintln!("        ...Loading failed. Could not resolve subunit '{}'", subunit_name);

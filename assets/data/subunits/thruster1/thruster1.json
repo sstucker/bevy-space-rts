@@ -1,6 +1,6 @@
 {
     "name": "thruster1",
-    "type": "aft-nuclear-thruster",
+    "type": "thruster",
     "class": 1,
     "sprites": [{
             "texture": "thruster1.png",

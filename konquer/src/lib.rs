@@ -1,5 +1,5 @@
 
-use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}};
+use bevy::{prelude::*};
 use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 

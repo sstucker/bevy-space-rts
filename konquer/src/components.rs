@@ -90,14 +90,14 @@ impl Default for Velocity {
 
 #[derive(Component)]
 pub struct Hp {
-    pub max: u8,
-    pub current: u8,
+    pub max: u64,
+    pub current: u64,
 }
 
 #[derive(Component)]
 pub struct Shield {
-    pub max: u8,
-    pub current: u8,
+    pub max: u64,
+    pub current: u64,
 }
 
 #[derive(Component)]

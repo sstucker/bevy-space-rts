@@ -1,24 +1,26 @@
 {
     "name": "ship1",
-    "type": "capital-frigate",
+    "type": "capital",
+    "subtype": "frigate",
     "hp": 100,
+    "size": [1392.0, 732.0],
     "sight-radius": 1000.0,
     "range-radius": 500.0,
     "forward-burn-threshold": 10.0,
     "lateral-drag": 0.97,
     "radial-drag": 0.95,
     "teamcolor-sprite": {
-        "texture": "layer1_teamcolor",
+        "texture": "data\\platforms\\ship1\\layer1_teamcolor",
         "size": [1392.0, 732.0],
         "z-order": 1
     },
     "sprites": [{
-            "texture": "layer2.png",
+            "texture": "data\\platforms\\ship1\\layer2.png",
             "size": [1392.0, 732.0],
             "z-order": 2
         },
         {
-            "texture": "layer3.png",
+            "texture": "data\\platforms\\ship1\\layer3.png",
             "size": [1392.0, 732.0],
             "z-order": 3
         }
@@ -26,14 +28,14 @@
     "hardpoints": [{
             "type": "turret",
             "class": 2,
-            "z-order": 1,
+            "z-order": 3,
             "position": [460.0, 0.0, 0.0],
             "angle-range": [0.0, 360.0]
         },
         {
             "type": "turret",
             "class": 2,
-            "z-order": 1,
+            "z-order": 3,
             "position": [-110.0, 0.0, 0.0],
             "angle-range": [0.0, 360.0]
         },
