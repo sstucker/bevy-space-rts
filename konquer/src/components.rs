@@ -1,7 +1,8 @@
 use std::{collections::VecDeque, marker::PhantomData};
-use bevy::{prelude::{Component, Entity}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}};
+use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}};
 use std::{sync::atomic::{AtomicU8, Ordering}};
 use crate::{Player, SPRITE_SCALE};
+use bit_vec::BitVec;
 
 
 pub fn get_components_for_entity<'a>(
@@ -40,6 +41,12 @@ pub struct GridLine;
 #[derive(Component)]
 pub struct MainSprite;
 
+
+#[derive(Component)]
+pub struct TeamSprite {
+    pub color: Color
+}
+
 #[derive(Component)]
 pub struct UnitPathDisplay;
 
@@ -68,6 +75,26 @@ impl Body {
             size: size,
             selection_radius: (size.x + size.y) * SPRITE_SCALE / 4.
         }
+    }
+}
+
+#[derive(Component)]
+pub struct CollisionGrid {
+    pub grid: BitVec,
+    dimensions: Vec2,
+    cells_w: i32,
+    cells_h: i32
+}
+
+impl CollisionGrid {
+    pub fn new(total_size: Vec2, cells_w: i32, cells_h: i32) -> Self {
+        Self {
+            grid: BitVec::new(cells_w * cells_h),
+            dimensions: total_size,
+            cells_w: cells_w,
+            cells_h: cells_h
+        }
+
     }
 }
 

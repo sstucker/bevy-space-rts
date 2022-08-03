@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, input::mouse::{MouseWheel, MouseScrollUnit}};
 
 use crate::Map;
 
@@ -46,6 +46,7 @@ fn camera_startup_system(
 
 fn camera_move_system(
     kb: Res<Input<KeyCode>>,
+    mut scrolls: EventReader<MouseWheel>,
     mut q_map: Query<&Map, With<Map>>,
     mut query: Query<(&mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
 ) {
@@ -73,10 +74,20 @@ fn camera_move_system(
 		} else {
 			0.
 		};
+        for ev in scrolls.iter() {
+            match ev.unit {
+                MouseScrollUnit::Line => {
+                    cam_velocity.dz += ev.y / 100.;
+                }
+                MouseScrollUnit::Pixel => {
+                    cam_velocity.dz += ev.y / 100.;
+                }
+            }
+        }
         cam_velocity.dz +=
-        if kb.pressed(KeyCode::PageUp) || kb.pressed(KeyCode::Plus) {
+        if kb.pressed(KeyCode::PageUp) {
 			0.005
-		} else if kb.pressed(KeyCode::PageDown) || kb.pressed(KeyCode::Minus) {
+		} else if kb.pressed(KeyCode::PageDown) {
 			-0.005
 		} else {
 			0.

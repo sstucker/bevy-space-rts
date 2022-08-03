@@ -10,7 +10,7 @@
     "lateral-drag": 0.97,
     "radial-drag": 0.95,
     "teamcolor-sprite": {
-        "texture": "data\\platforms\\ship1\\layer1_teamcolor",
+        "texture": "data\\platforms\\ship1\\layer1_teamcolor.png",
         "size": [1392.0, 732.0],
         "z-order": 1
     },

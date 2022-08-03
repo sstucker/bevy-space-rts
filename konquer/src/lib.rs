@@ -3,6 +3,8 @@ use bevy::{prelude::*};
 use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 
+use bit_vec::BitVec;
+
 use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, f32::consts::PI};
 
 pub mod components;
@@ -25,6 +27,8 @@ pub use ui::*;
 
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
+
+const DEBUG: bool = false;
 
 // TODO parameterize and IO
 const UI_ZORDER: f32 = 20.;
@@ -56,6 +60,7 @@ impl Plugin for UnitPlugin {
         //     .add_system(player_fire_system);
         app
             .insert_resource(Msaa { samples: 4 })
+            .insert_resource( CollisionGrid::new() )
             .add_plugin(ShapePlugin)
             .add_plugin(InputPlugin)
             .add_plugin(AssetLoaderPlugin)
@@ -77,7 +82,9 @@ impl Plugin for UnitPlugin {
             .add_system(ui_highlight_selected_system)
             .add_system(ui_show_path_system)
             // Mechanics
-            .add_system(spawn_units_system);
+            .add_system(spawn_units_system)
+            // .add_system(teamcolor_system) TODO
+            ;
     }
 }
 

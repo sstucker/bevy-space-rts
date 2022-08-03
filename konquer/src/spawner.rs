@@ -17,6 +17,17 @@ impl SpawnUnitEvent {
     }
 }
 
+// TODO
+// pub fn teamcolor_system(
+//     mut materials: ResMut<Assets<ColorMaterial>>,
+//     query: Query<(&mut Handle<ColorMaterial>, &TeamSprite)>
+// ) {
+//     for (handle, teamsprite) in query.iter() {
+//         materials.get_mut(handle).unwrap().color = teamsprite.color;
+//         println!("Set color to {:?}", teamsprite.color);
+//     }
+// }
+
 pub fn spawn_units_system(
     mut ev_spawn: EventReader<SpawnUnitEvent>,
     mut commands: Commands,
@@ -37,7 +48,6 @@ pub fn spawn_units_system(
                         // TODO error checking
                         let unit_hitpoints = unit_data.platform["hp"].as_u64().unwrap();
                         let unit_size = serde_to_bevy_vec2(unit_data.platform["size"].as_array().unwrap());
-
                         ec.insert( Velocity { ..Default::default() } );
                         ec.insert( Hp { max: unit_hitpoints, current: unit_hitpoints } );
                         ec.insert( Body::new(ev.position, unit_size) );
@@ -51,6 +61,7 @@ pub fn spawn_units_system(
                         }
                         ec.insert( Selectable );
                         ec.insert( UnitPath::new() );
+                        // Unit master transform
                         ec.insert_bundle( TransformBundle {
                             local: Transform {
                                 translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
@@ -63,34 +74,43 @@ pub fn spawn_units_system(
                         ec.with_children(|parent| {
 
                             // Add sprites
-
-                            // TODO function
                             for sprite_data in unit_data.platform["sprites"].as_array().unwrap().iter() {
                                 println!("Adding sprite {}", sprite_data["texture"].as_str().unwrap());
-                                parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, 0.));
+                                parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, 0.))
+                                    .insert(MainSprite);
                             }
-                            // Debug sprites
-                            parent.spawn_bundle(SpriteBundle {
-                                sprite: Sprite {
-                                    color: Color::rgba(1., 0., 0., 0.01),
-                                    custom_size: Some(unit_size * SPRITE_SCALE),
-                                    ..Default::default()
-                                },
-                                transform: Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
-                                ..Default::default()
-                            }).insert(DebugRect);
+                            // Teamcolor sprite
+                            let teamsprite_data = &unit_data.platform["teamcolor-sprite"];
+                            println!("Adding teamcolor sprite from {} color {:?}", teamsprite_data["texture"].as_str().unwrap(), ev.player.teamcolor);
+                            parent.spawn_bundle(
+                                sprite_bundle_from_data(teamsprite_data, &asset_server, 0.)
+                            )
+                            .insert(TeamSprite { color: ev.player.teamcolor } );
 
-                            parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
-                                sides: 30,
-                                feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) * SPRITE_SCALE / 4.),
-                                ..shapes::RegularPolygon::default()
-                            },
-                            DrawMode::Outlined {
-                                fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.1)),
-                                outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.), 2.),
-                            },
-                            Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
-                            )).insert(DebugSelectionRadius);
+                            if DEBUG {
+                                // Debug sprites
+                                parent.spawn_bundle(SpriteBundle {
+                                    sprite: Sprite {
+                                        color: Color::rgba(1., 0., 0., 0.01),
+                                        custom_size: Some(unit_size * SPRITE_SCALE),
+                                        ..Default::default()
+                                    },
+                                    transform: Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
+                                    ..Default::default()
+                                }).insert(DebugRect);
+
+                                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                                    sides: 30,
+                                    feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) * SPRITE_SCALE / 4.),
+                                    ..shapes::RegularPolygon::default()
+                                },
+                                DrawMode::Outlined {
+                                    fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.1)),
+                                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.), 2.),
+                                },
+                                Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
+                                )).insert(DebugSelectionRadius);
+                            }
 
                             // Add subunits
                             for (subunit, hardpoint) in zip(unit_data.loadout.iter(), 
@@ -109,6 +129,9 @@ pub fn spawn_units_system(
                             }
                         });   
                     },
+                    "corvette" => (),
+                    "fighter" => (),
+                    "structure" => (),
                     _ => ()
                 }
             }
@@ -159,10 +182,6 @@ fn add_turret(
             subunit_size
         )
     )
-    .insert(Unit::new(
-        String::from(subunit_data["name"].as_str().unwrap()),
-        Player { id: USER_ID, teamcolor: Color::rgb(0., 1., 0.) }  // TODO colors
-    ))
     .insert(Subunit { relative_position: Vec3::new(subunit_pos.x, subunit_pos.y, 0.) } )
     .insert(Velocity { ..Default::default() })
     .insert(Range {
@@ -209,10 +228,6 @@ fn add_thruster(
             subunit_size
         )
     )
-    .insert(Unit::new(
-        String::from(subunit_data["name"].as_str().unwrap()),
-        Player { id: USER_ID, teamcolor: Color::rgb(0., 1., 0.) }  // TODO colors
-    ))
     .insert(Subunit { relative_position: Vec3::new(subunit_pos.x, subunit_pos.y, 0.) } )
     .insert(Thruster {
         omnidirectional_thrust: 0.001,

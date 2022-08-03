@@ -1836,6 +1836,7 @@ dependencies = [
  "bevy_common_assets",
  "bevy_prototype_debug_lines",
  "bevy_prototype_lyon",
+ "bit-vec",
  "fixed",
  "konquer",
  "rand",
