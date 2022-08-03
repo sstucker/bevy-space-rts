@@ -1,9 +1,10 @@
 {
     "name": "thruster1",
     "type": "thruster",
+    "size": [102.0, 100.0],
     "class": 1,
     "sprites": [{
-            "texture": "thruster1.png",
+            "texture": "data\\subunits\\thruster1\\thruster1.png",
             "size": [102.0, 100.0],
             "z-order": 0
         }

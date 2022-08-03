@@ -74,9 +74,9 @@ fn camera_move_system(
 			0.
 		};
         cam_velocity.dz +=
-        if kb.pressed(KeyCode::PageUp) {
+        if kb.pressed(KeyCode::PageUp) || kb.pressed(KeyCode::Plus) {
 			0.005
-		} else if kb.pressed(KeyCode::PageDown) {
+		} else if kb.pressed(KeyCode::PageDown) || kb.pressed(KeyCode::Minus) {
 			-0.005
 		} else {
 			0.

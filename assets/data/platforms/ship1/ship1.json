@@ -29,7 +29,7 @@
             "type": "turret",
             "class": 2,
             "z-order": 3,
-            "position": [460.0, 0.0, 0.0],
+            "position": [480.0, 0.0, 0.0],
             "angle-range": [0.0, 360.0]
         },
         {
@@ -43,19 +43,19 @@
             "type": "thruster",
             "class": 1,
             "z-order": 0,
-            "position": [-500.0, 20.0, 0.0]
+            "position": [-620.0, 80.0, 0.0]
         },
         {
             "type": "thruster",
             "class": 1,
             "z-order": 0,
-            "position": [-500.0, -20.0, 0.0]
+            "position": [-620.0, -80.0, 0.0]
         },
         {
             "type": "thruster",
             "class": 1,
-            "z-order": 2,
-            "position": [-400.0, 0.0, 0.0]
+            "z-order": 3,
+            "position": [-500.0, 0.0, 0.0]
         }
     ]
 }
