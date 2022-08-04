@@ -47,8 +47,8 @@ fn camera_startup_system(
 fn camera_move_system(
     kb: Res<Input<KeyCode>>,
     mut scrolls: EventReader<MouseWheel>,
-    mut q_map: Query<&Map, With<Map>>,
     mut query: Query<(&mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
+    q_map: Query<&Map, With<Map>>,
 ) {
     if let Ok((mut projection, mut cam_transform, mut cam_velocity)) = query.get_single_mut() {
         let map = q_map.single();
@@ -59,17 +59,17 @@ fn camera_move_system(
         cam_velocity.dz *= CAMERA_DRAG;
         // Change velocity
         cam_velocity.dx +=
-        if kb.pressed(KeyCode::Left) && (cam_transform.translation.x > -map.w as f32 / 2.) {
+        if kb.pressed(KeyCode::Left) && (cam_transform.translation.x > 0.) {
 			-1.
-		} else if kb.pressed(KeyCode::Right) && (cam_transform.translation.x < map.w as f32 / 2.) {
+		} else if kb.pressed(KeyCode::Right) && (cam_transform.translation.x < map.w as f32) {
 			1.
 		} else {
 			0.
 		};
         cam_velocity.dy +=
-        if kb.pressed(KeyCode::Up) && (cam_transform.translation.y < map.h as f32 / 2.) {
+        if kb.pressed(KeyCode::Up) && (cam_transform.translation.y < map.h as f32) {
 			1.
-		} else if kb.pressed(KeyCode::Down) && (cam_transform.translation.y > -map.h as f32 / 2.) {
+		} else if kb.pressed(KeyCode::Down) && (cam_transform.translation.y > 0.) {
 			-1.
 		} else {
 			0.
@@ -77,7 +77,7 @@ fn camera_move_system(
         for ev in scrolls.iter() {
             match ev.unit {
                 MouseScrollUnit::Line => {
-                    cam_velocity.dz += ev.y / 100.;
+                    cam_velocity.dz -= ev.y / 100.;
                 }
                 MouseScrollUnit::Pixel => {
                     cam_velocity.dz += ev.y / 100.;

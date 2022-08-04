@@ -36,6 +36,15 @@ pub struct DebugRect;
 pub struct DebugSelectionRadius;
 
 #[derive(Component)]
+pub struct DebugCollisionRadius;
+
+#[derive(Component)]
+pub struct DebugRepulsionRadius;
+
+#[derive(Component)]
+pub struct DebugCollisionCheckLine;
+
+#[derive(Component)]
 pub struct GridLine;
 
 #[derive(Component)]
@@ -51,15 +60,20 @@ pub struct TeamSprite {
 pub struct UnitPathDisplay;
 
 #[derive(Component)]
+pub struct CapitalShip;
+
+#[derive(Component)]
 pub struct Turret {
     pub reload_time: f32
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Body {
 	pub position: Vec3,  // x, y, w
     pub size: Vec2, // x, y
-    pub selection_radius: f32
+    pub selection_radius: f32,
+    pub collision_radius: f32,
+    pub repulsion_radius: f32
 }
 
 #[derive(Component)]
@@ -73,28 +87,10 @@ impl Body {
         Body {
             position: position,
             size: size,
-            selection_radius: (size.x + size.y) * SPRITE_SCALE / 4.
+            repulsion_radius: (size.x + size.y) * SPRITE_SCALE / 2.5,
+            selection_radius: (size.x + size.y) * SPRITE_SCALE / 4.,
+            collision_radius: (size.x + size.y) * SPRITE_SCALE / 5.,
         }
-    }
-}
-
-#[derive(Component)]
-pub struct CollisionGrid {
-    pub grid: BitVec,
-    dimensions: Vec2,
-    cells_w: i32,
-    cells_h: i32
-}
-
-impl CollisionGrid {
-    pub fn new(total_size: Vec2, cells_w: i32, cells_h: i32) -> Self {
-        Self {
-            grid: BitVec::new(cells_w * cells_h),
-            dimensions: total_size,
-            cells_w: cells_w,
-            cells_h: cells_h
-        }
-
     }
 }
 

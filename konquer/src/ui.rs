@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 use bevy_prototype_lyon::prelude::*;
 use bevy::prelude::*;
 
@@ -15,6 +17,10 @@ pub fn ui_highlight_selected_system(
     let projection = q_camera.single();
     for (entity, body, unit) in q_units.iter() {
         let mut ec = commands.entity(entity);
+        let sel_color = match unit.player.id {
+            USER_ID => Color::GREEN,
+            _ => Color::RED
+        };
         ec.with_children(|parent| {
             parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
                 sides: 60,
@@ -23,7 +29,7 @@ pub fn ui_highlight_selected_system(
             },
             DrawMode::Outlined {
                 fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
-                outline_mode: StrokeMode::new(Color::GREEN, 1. * projection.scale),
+                outline_mode: StrokeMode::new(sel_color, 1. * projection.scale),
             },
             Transform { translation: Vec3::new(0., 0., UI_ZORDER), ..Default::default() },
         )).insert(UnitSelectedCircle);

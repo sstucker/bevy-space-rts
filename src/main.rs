@@ -8,8 +8,8 @@ use konquer::spawner::*;
 
 // Temp Const
 
-const WINDOW_W: i32 = 500;
-const WINDOW_H: i32 = 500;
+const WINDOW_W: i32 = 1000;
+const WINDOW_H: i32 = 1000;
 
 fn main() {
 	App::new()
@@ -22,7 +22,6 @@ fn main() {
 		})
 		.add_plugins(DefaultPlugins)
 		.add_plugin(konquer::UnitPlugin)
-		.add_plugin(konquer::KinematicCameraPlugin)
         // .add_startup_system(startup_system)
 		.add_startup_system(test_system)
 		.run();
@@ -45,22 +44,25 @@ fn test_system(
 	let player2 = konquer::Player::new();
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player1.clone(), Vec3::new(-50., -50., 0.)
+		"Frigate1".to_string(), player1.clone(), Vec3::new(50., 50., 0.)
 	));
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player2.clone(), Vec3::new(50., 50., 0.)
+		"Frigate1".to_string(), player1.clone(), Vec3::new(150., 150., 0.)
 	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player2.clone(), Vec3::new(200., 200., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player2.clone(), Vec3::new(-200., 200., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player2.clone(), Vec3::new(200., -200., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player2.clone(), Vec3::new(-200., -200., 0.)
-	));
+	// test_spawner.send(konquer::SpawnUnitEvent::new(
+	// 	"Frigate1".to_string(), player1.clone(), Vec3::new(200., 200., 0.)
+	// ));
+	// test_spawner.send(konquer::SpawnUnitEvent::new(
+	// 	"Frigate1".to_string(), player1.clone(), Vec3::new(250., 250., 0.)
+	// ));
+	// test_spawner.send(konquer::SpawnUnitEvent::new(
+	// 	"Frigate1".to_string(), player2.clone(), Vec3::new(300., 300., 0.)
+	// ));
+	// test_spawner.send(konquer::SpawnUnitEvent::new(
+	// 	"Frigate1".to_string(), player2.clone(), Vec3::new(400., 400., 0.)
+	// ));
+	// test_spawner.send(konquer::SpawnUnitEvent::new(
+	// 	"Frigate1".to_string(), player1.clone(), Vec3::new(1200., 1200., 0.)
+	// ));
 }

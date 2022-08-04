@@ -48,9 +48,10 @@ pub fn spawn_units_system(
                         // TODO error checking
                         let unit_hitpoints = unit_data.platform["hp"].as_u64().unwrap();
                         let unit_size = serde_to_bevy_vec2(unit_data.platform["size"].as_array().unwrap());
+                        let body = Body::new(ev.position, unit_size);
                         ec.insert( Velocity { ..Default::default() } );
                         ec.insert( Hp { max: unit_hitpoints, current: unit_hitpoints } );
-                        ec.insert( Body::new(ev.position, unit_size) );
+                        ec.insert( body );
                         ec.insert( Targets::new() );
                         if ev.player.id == USER_ID {
                             ec.insert( Targeterable );
@@ -59,6 +60,7 @@ pub fn spawn_units_system(
                         else {
                             ec.insert( Targeteeable );
                         }
+                        ec.insert( CapitalShip );
                         ec.insert( Selectable );
                         ec.insert( UnitPath::new() );
                         // Unit master transform
@@ -87,7 +89,7 @@ pub fn spawn_units_system(
                             )
                             .insert(TeamSprite { color: ev.player.teamcolor } );
 
-                            if DEBUG {
+                            if DEBUG_GRAPHICS {
                                 // Debug sprites
                                 parent.spawn_bundle(SpriteBundle {
                                     sprite: Sprite {
@@ -101,15 +103,39 @@ pub fn spawn_units_system(
 
                                 parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
                                     sides: 30,
-                                    feature: shapes::RegularPolygonFeature::Radius((unit_size[0] + unit_size[1]) * SPRITE_SCALE / 4.),
+                                    feature: shapes::RegularPolygonFeature::Radius(body.selection_radius),
+                                    ..shapes::RegularPolygon::default()
+                                },
+                                DrawMode::Outlined {
+                                    fill_mode: FillMode::color(Color::rgba(0., 0., 1., 0.1)),
+                                    outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 2.),
+                                },
+                                Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
+                                )).insert(DebugSelectionRadius);
+
+                                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                                    sides: 30,
+                                    feature: shapes::RegularPolygonFeature::Radius(body.collision_radius),
+                                    ..shapes::RegularPolygon::default()
+                                },
+                                DrawMode::Outlined {
+                                    fill_mode: FillMode::color(Color::rgba(1., 0., 0.5, 0.1)),
+                                    outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.), 2.),
+                                },
+                                Transform { translation: Vec3::new(0., 0., -3.), ..Default::default() },
+                                )).insert(DebugCollisionRadius);
+
+                                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                                    sides: 30,
+                                    feature: shapes::RegularPolygonFeature::Radius(body.repulsion_radius),
                                     ..shapes::RegularPolygon::default()
                                 },
                                 DrawMode::Outlined {
                                     fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.1)),
                                     outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.), 2.),
                                 },
-                                Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
-                                )).insert(DebugSelectionRadius);
+                                Transform { translation: Vec3::new(0., 0., -4.), ..Default::default() },
+                                )).insert(DebugRepulsionRadius);
                             }
 
                             // Add subunits

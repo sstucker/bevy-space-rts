@@ -1,11 +1,13 @@
 
+use bevy::ecs::entity;
 use bevy::{prelude::*};
 use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 
-use bit_vec::BitVec;
-
 use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, f32::consts::PI};
+
+pub mod quadtree;
+pub use quadtree::*;
 
 pub mod components;
 pub use components::*;
@@ -28,15 +30,15 @@ pub use ui::*;
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 
-const DEBUG: bool = false;
+const DEBUG_GRAPHICS: bool = true;
 
 // TODO parameterize and IO
 const UI_ZORDER: f32 = 20.;
 const UNIT_ZORDER: f32 = 10.;
 const WORLD_ZORDER: f32 = 0.;
 
-const MAP_W: i32 = 1200;
-const MAP_H: i32 = 1200;
+const MAP_W: i32 = 4000;
+const MAP_H: i32 = 4000;
 
 const SPRITE_SCALE: f32 = 0.05;
 
@@ -47,6 +49,13 @@ type WindowSize = Vec2;
 // -- UnitPlugin --------------------------------------------
 
 pub struct UnitPlugin;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(SystemLabel)]
+enum Stage {
+    /// everything that handles input
+    Kinematics,
+}
 
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut App) {
@@ -60,17 +69,18 @@ impl Plugin for UnitPlugin {
         //     .add_system(player_fire_system);
         app
             .insert_resource(Msaa { samples: 4 })
-            .insert_resource( CollisionGrid::new() )
             .add_plugin(ShapePlugin)
             .add_plugin(InputPlugin)
             .add_plugin(AssetLoaderPlugin)
             .add_event::<SpawnUnitEvent>()
             .add_startup_system(startup_system)
             .add_startup_system_to_stage(StartupStage::PostStartup, map_system)
+            .add_plugin(KinematicCameraPlugin)
             .add_system_set(SystemSet::new()  // Unit updates
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
-                .with_system(unit_movement_system)
-                .with_system(turret_track_and_fire_system)
+                .with_system(turret_track_and_fire_system).label(Stage::Kinematics)
+                .with_system(unit_movement_system).label(Stage::Kinematics)
+                .with_system(capital_ship_repulsion_system)
                 .with_system(turret_target_dispatcher)
                 .with_system(unit_pathing_system)
             )
@@ -116,7 +126,7 @@ fn startup_system(
 
 // TODO add these as parameters for various units
 const HEADING_THRESH_BURN: f32 = 0.8;  // Radians
-const DRAG_LATERAL: f32 = 0.97;
+const DRAG_LATERAL: f32 = 0.975;
 const DRAG_RADIAL: f32 = 0.95;
 const APPROACH_THRESHOLD_REAR: f32 = 100.;
 const APPROACH_THRESHOLD_OMNI: f32 = 5.;
@@ -197,8 +207,10 @@ fn turret_track_and_fire_system(
     q_body: Query<&Body>,
     q_debug_graphics: Query<Entity, With<DebugTurretTargetLine>>,
 ) {
-    for line in q_debug_graphics.iter() {
-        commands.entity(line).despawn();
+    if DEBUG_GRAPHICS {
+        for line in q_debug_graphics.iter() {
+            commands.entity(line).despawn();
+        }
     }
     for (turret_parent, targets, subunit, mut turret_velocity, turret_body) in q_turret.iter_mut() {
         for target_entity in targets.deque.iter() {
@@ -212,41 +224,43 @@ fn turret_track_and_fire_system(
                     let err = 1. - heading.dot(target);
                     
                     // DEBUG GRAPHICS
-                    let mut path_builder = PathBuilder::new();
-                    path_builder.move_to(abs_turret_pos.truncate());
-                    path_builder.line_to(target_body.position.truncate());
-                    let line = path_builder.build();
-                    commands.spawn_bundle(GeometryBuilder::build_as(
-                        &line,
-                        DrawMode::Stroke(StrokeMode::new(
-                            Color::rgba(1., 0., 0., 0.7),
-                            1.  // Always draw the same thickness of UI elements regardless of zoom
-                        )),
-                        Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
-                    )).insert( DebugTurretTargetLine );                    
-                    let mut path_builder = PathBuilder::new();
-                    path_builder.move_to(abs_turret_pos.truncate());
-                    path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
-                    // path_builder.line_to(target_body.position.truncate());
-                    let line = path_builder.build();
-                    commands.spawn_bundle(GeometryBuilder::build_as(
-                        &line,
-                        DrawMode::Stroke(StrokeMode::new(
-                            Color::rgba(0., 1., 0., 0.5),
-                            3.  // Always draw the same thickness of UI elements regardless of zoom
-                        )),
-                        Transform { translation: Vec3::new(0., 0., 150.), ..Default::default() },
-                    )).insert( DebugTurretTargetLine );
-                    // println!("Error {} Cross {}", err, cross);
-                    if cross.abs() > TURRET_ON_TARGET_THRESH {
-                        turret_velocity.dw = 
-                        if cross > 0.0 {
-                            -0.1 * err.sqrt().min(1.)
-                        } else if cross < 0.0 {
-                            0.1 * err.sqrt().min(1.)
-                        } else {
-                            0.
-                        };  
+                    if DEBUG_GRAPHICS {
+                        let mut path_builder = PathBuilder::new();
+                        path_builder.move_to(abs_turret_pos.truncate());
+                        path_builder.line_to(target_body.position.truncate());
+                        let line = path_builder.build();
+                        commands.spawn_bundle(GeometryBuilder::build_as(
+                            &line,
+                            DrawMode::Stroke(StrokeMode::new(
+                                Color::rgba(1., 0., 0., 0.7),
+                                1.  // Always draw the same thickness of UI elements regardless of zoom
+                            )),
+                            Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                        )).insert( DebugTurretTargetLine );                    
+                        let mut path_builder = PathBuilder::new();
+                        path_builder.move_to(abs_turret_pos.truncate());
+                        path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
+                        // path_builder.line_to(target_body.position.truncate());
+                        let line = path_builder.build();
+                        commands.spawn_bundle(GeometryBuilder::build_as(
+                            &line,
+                            DrawMode::Stroke(StrokeMode::new(
+                                Color::rgba(0., 1., 0., 0.5),
+                                3.  // Always draw the same thickness of UI elements regardless of zoom
+                            )),
+                            Transform { translation: Vec3::new(0., 0., 150.), ..Default::default() },
+                        )).insert( DebugTurretTargetLine );
+                        // println!("Error {} Cross {}", err, cross);
+                        if cross.abs() > TURRET_ON_TARGET_THRESH {
+                            turret_velocity.dw = 
+                            if cross > 0.0 {
+                                -0.1 * err.sqrt().min(1.)
+                            } else if cross < 0.0 {
+                                0.1 * err.sqrt().min(1.)
+                            } else {
+                                0.
+                            };  
+                        }
                     }
                 }
                 else {
@@ -255,6 +269,61 @@ fn turret_track_and_fire_system(
             }
             else {
                 println!("Could not get target body")
+            }
+        }
+    }
+}
+
+// Capital ships do not collide, but instead repel one another
+fn capital_ship_repulsion_system(
+    mut commands: Commands,
+    q_debug: Query<Entity, With<DebugCollisionCheckLine>>,
+    q_capitals: Query<(Entity, &Body), With<CapitalShip>>,
+    mut q_velocity: Query<&mut Velocity, With<CapitalShip>>,
+    mut qtree: ResMut<CollisionQuadtree>
+) { 
+    if DEBUG_GRAPHICS {
+        for line in q_debug.iter() {
+            commands.entity(line).despawn();
+        }
+    }
+    qtree.clear();
+    for (entity, body) in q_capitals.iter() {
+        qtree.insert(EntityBody { entity: entity, position: body.position.truncate(), radius: body.repulsion_radius })
+    }
+    let mut colliders: Vec<EntityBody> = Vec::new();
+    for (entity, body) in q_capitals.iter() {
+        colliders.clear();
+        qtree.retrieve(body.position.truncate(), body.repulsion_radius, &mut colliders);
+        for e in colliders.iter() {
+            if e.entity.id() != entity.id() {
+                if DEBUG_GRAPHICS {
+                    let mut path_builder = PathBuilder::new();
+                    path_builder.move_to(e.position);
+                    path_builder.line_to(body.position.truncate());
+                    let line = path_builder.build();
+                    commands.spawn_bundle(GeometryBuilder::build_as(
+                        &line,
+                        DrawMode::Stroke(StrokeMode::new(
+                            Color::rgba(1., 1., 1., 0.5),
+                            1.
+                        )),
+                        Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                    )).insert( DebugCollisionCheckLine );  
+    
+                    let distance = body.position.truncate().distance(e.position);
+                    if distance < (e.radius + body.repulsion_radius) {
+                        let heading = (body.position.truncate() - e.position).normalize();
+                        if let Ok(mut v1) = q_velocity.get_mut(e.entity) {
+                            v1.dx -= heading.x * 1. / (distance * 4.);
+                            v1.dy -= heading.y * 1. / (distance * 4.);
+                        }
+                        if let Ok(mut v2) = q_velocity.get_mut(entity) {
+                            v2.dx += heading.x * 1. / (distance * 4.);
+                            v2.dy += heading.y * 1. / (distance * 4.);      
+                        }
+                    }
+                }    
             }
         }
     }
@@ -288,15 +357,21 @@ fn unit_movement_system(
 fn map_system(
     mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	q_camera: Query<&OrthographicProjection, With<Camera>>,
+	mut q_camera: Query<(&OrthographicProjection, &mut Transform), With<Camera>>,
 ) {
+    
+    commands.insert_resource( CollisionQuadtree::new(0, Rectangle2D { x: 0., y: 0., width: MAP_W as f32, height: MAP_H as f32 }) );
+    
     let map: Map = Map { w: MAP_W, h: MAP_H };
 	let mut ec = commands.spawn();
     ec.insert(map);
 
     // Draw map grid
-	let projection = q_camera.single();
+	let (projection, mut transform) = q_camera.single_mut();
     
+    transform.translation.x = MAP_W as f32 / 2.;
+    transform.translation.y = MAP_H as f32 / 2.;
+
     ec.with_children(|parent| {
         let mut draw_gridline = |p1: Vec2, p2: Vec2| {
             let mut path_builder = PathBuilder::new();
@@ -312,11 +387,11 @@ fn map_system(
                 Transform { translation: Vec3::new(0., 0., WORLD_ZORDER), ..Default::default() },
             )).insert( GridLine );
         };
-        for y in (-map.h / 2..map.h / 2).step_by(100) {
-            draw_gridline(Vec2::new(-MAP_W as f32 / 2., y as f32), Vec2::new(MAP_W as f32 / 2., y as f32));
+        for y in (0..map.h).step_by(100) {
+            draw_gridline(Vec2::new(0., y as f32), Vec2::new(MAP_W as f32, y as f32));
         }
-        for x in (-map.w / 2..map.w / 2).step_by(100) {
-            draw_gridline(Vec2::new(x as f32, -MAP_H as f32 / 2.), Vec2::new(x as f32, MAP_H as f32 / 2.));
+        for x in (0..map.w).step_by(100) {
+            draw_gridline(Vec2::new(x as f32, 0.), Vec2::new(x as f32, MAP_H as f32));
         }
     });
 }

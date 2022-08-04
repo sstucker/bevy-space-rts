@@ -127,17 +127,17 @@ pub fn input_mouse_system(
             let mut m_pos: Vec2 = ndc_to_world.project_point3(ndc.extend(-1.)).truncate();
             
             // Prevent selection from exceeding bounds of the world
-            if m_pos.x < -map.w as f32 / 2. {
-                m_pos.x = -map.w as f32 / 2.;
+            if m_pos.x < 0. {
+                m_pos.x = 0.;
             }
-            else if m_pos.x > map.w as f32 / 2. {
-                m_pos.x = map.w as f32 / 2.;
+            else if m_pos.x > map.w as f32 {
+                m_pos.x = map.w as f32;
             }
-            if m_pos.y < -map.h as f32 / 2. {
-                m_pos.y = -map.h as f32 / 2.;
+            if m_pos.y < 0. {
+                m_pos.y = 0.;
             }
-            else if m_pos.y > map.h as f32 / 2. {
-                m_pos.y = map.h as f32 / 2.;
+            else if m_pos.y > map.h as f32 {
+                m_pos.y = map.h as f32;
             }
             if mb.just_released(MouseButton::Left) {
                 match input_actions.mouse {
