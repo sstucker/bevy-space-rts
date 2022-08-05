@@ -40,7 +40,7 @@ pub fn spawn_units_system(
 
             let mut ec = commands.spawn();
             ec.insert(Unit::new(ev.unit_type.clone(), ev.player.clone()));
-            println!("Unit based on platform {}", unit_data.platform["type"]);
+            // println!("Unit based on platform {}", unit_data.platform["type"]);
             if let Some(unit_type) = unit_data.platform["type"].as_str()
             {
                 match unit_type {
@@ -77,13 +77,13 @@ pub fn spawn_units_system(
 
                             // Add sprites
                             for sprite_data in unit_data.platform["sprites"].as_array().unwrap().iter() {
-                                println!("Adding sprite {}", sprite_data["texture"].as_str().unwrap());
+                                // println!("Adding sprite {}", sprite_data["texture"].as_str().unwrap());
                                 parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, 0.))
                                     .insert(MainSprite);
                             }
                             // Teamcolor sprite
                             let teamsprite_data = &unit_data.platform["teamcolor-sprite"];
-                            println!("Adding teamcolor sprite from {} color {:?}", teamsprite_data["texture"].as_str().unwrap(), ev.player.teamcolor);
+                            // println!("Adding teamcolor sprite from {} color {:?}", teamsprite_data["texture"].as_str().unwrap(), ev.player.teamcolor);
                             parent.spawn_bundle(
                                 sprite_bundle_from_data(teamsprite_data, &asset_server, 0.)
                             )
@@ -143,11 +143,11 @@ pub fn spawn_units_system(
                             unit_data.platform["hardpoints"].as_array().unwrap().iter()) {
                                 match subunit["type"].as_str().unwrap() {
                                     "turret" => {
-                                        println!("Adding turret...");
+                                        // println!("Adding turret...");
                                         add_turret(parent, subunit, hardpoint, &asset_server);
                                     },
                                     "thruster" => {
-                                        println!("Adding thruster...");
+                                        // println!("Adding thruster...");
                                         add_thruster(parent, subunit, hardpoint, &asset_server);
                                     },
                                     _ => ()
@@ -216,6 +216,7 @@ fn add_turret(
     })
     .insert(Targets::new())
     .insert(Turret {
+        name: String::from(subunit_data["name"].as_str().unwrap()),
         reload_time: subunit_data["reload-time"].as_f64().unwrap() as f32
     });
 

@@ -50,19 +50,19 @@ fn test_system(
 	test_spawner.send(konquer::SpawnUnitEvent::new(
 		"Frigate1".to_string(), player1.clone(), Vec3::new(150., 150., 0.)
 	));
-	// test_spawner.send(konquer::SpawnUnitEvent::new(
-	// 	"Frigate1".to_string(), player1.clone(), Vec3::new(200., 200., 0.)
-	// ));
-	// test_spawner.send(konquer::SpawnUnitEvent::new(
-	// 	"Frigate1".to_string(), player1.clone(), Vec3::new(250., 250., 0.)
-	// ));
-	// test_spawner.send(konquer::SpawnUnitEvent::new(
-	// 	"Frigate1".to_string(), player2.clone(), Vec3::new(300., 300., 0.)
-	// ));
-	// test_spawner.send(konquer::SpawnUnitEvent::new(
-	// 	"Frigate1".to_string(), player2.clone(), Vec3::new(400., 400., 0.)
-	// ));
-	// test_spawner.send(konquer::SpawnUnitEvent::new(
-	// 	"Frigate1".to_string(), player1.clone(), Vec3::new(1200., 1200., 0.)
-	// ));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		"Frigate1".to_string(), player1.clone(), Vec3::new(600., 600., 0.)
+	));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		"Frigate1".to_string(), player1.clone(), Vec3::new(250., 950., 0.)
+	));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		"Frigate1".to_string(), player2.clone(), Vec3::new(1200., 1200., 0.)
+	));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		"Frigate1".to_string(), player2.clone(), Vec3::new(2000., 400., 0.)
+	));
+	test_spawner.send(konquer::SpawnUnitEvent::new(
+		"Frigate1".to_string(), player1.clone(), Vec3::new(2400., 1200., 0.)
+	));
 }
