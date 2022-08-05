@@ -40,8 +40,7 @@ pub fn spawn_units_system(
 
             let mut ec = commands.spawn();
             ec.insert(Unit::new(ev.unit_type.clone(), ev.player.clone()));
-            // println!("Unit based on platform {}", unit_data.platform["type"]);
-            if let Some(unit_type) = unit_data.platform["type"].as_str()
+            if let Some(unit_type) = unit_data.platform["class"].as_str()
             {
                 match unit_type {
                     "capital" => {
@@ -141,7 +140,7 @@ pub fn spawn_units_system(
                             // Add subunits
                             for (subunit, hardpoint) in zip(unit_data.loadout.iter(), 
                             unit_data.platform["hardpoints"].as_array().unwrap().iter()) {
-                                match subunit["type"].as_str().unwrap() {
+                                match subunit["class"].as_str().unwrap() {
                                     "turret" => {
                                         // println!("Adding turret...");
                                         add_turret(parent, subunit, hardpoint, &asset_server);
@@ -215,10 +214,12 @@ fn add_turret(
         fire: subunit_data["range-fire"].as_f64().unwrap() as f32
     })
     .insert(Targets::new())
-    .insert(Turret {
-        name: String::from(subunit_data["name"].as_str().unwrap()),
-        reload_time: subunit_data["reload-time"].as_f64().unwrap() as f32
-    });
+    .insert(Turret::new(
+        String::from(subunit_data["name"].as_str().unwrap()),
+        String::from(subunit_data["projectile"].as_str().unwrap()),
+        subunit_data["reload-time"].as_u64().unwrap()
+        )
+    );
 
 }
 

@@ -1,3 +1,7 @@
+#![allow(unused_variables)]
+#![allow(unused_labels)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
 
 use bevy::ecs::entity;
 use bevy::{prelude::*};
@@ -30,15 +34,16 @@ pub use ui::*;
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 
-const DEBUG_GRAPHICS: bool = true;
+const DEBUG_GRAPHICS: bool = false;
 
 // TODO parameterize and IO
 const UI_ZORDER: f32 = 20.;
-const UNIT_ZORDER: f32 = 10.;
+const UNIT_ZORDER: f32 = 100.;
+const PROJECTILE_ZORDER: f32 = 200.;
 const WORLD_ZORDER: f32 = 0.;
 
-const MAP_W: i32 = 4000;
-const MAP_H: i32 = 4000;
+const MAP_W: i32 = 500;
+const MAP_H: i32 = 500;
 
 const SPRITE_SCALE: f32 = 0.05;
 
@@ -80,6 +85,7 @@ impl Plugin for UnitPlugin {
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(turret_track_and_fire_system).label(Stage::Kinematics)
                 .with_system(unit_movement_system).label(Stage::Kinematics)
+                .with_system(projectile_movement_system).label(Stage::Kinematics)
                 .with_system(capital_ship_repulsion_system)
                 .with_system(turret_target_dispatcher)
                 .with_system(unit_pathing_system)
@@ -174,7 +180,6 @@ fn unit_pathing_system(
 
 // Passes targets to subunits
 fn turret_target_dispatcher(
-    mut commands: Commands,
     q_targeters: Query<(Entity, &Children, &Targets), (With<Targets>, Without<Subunit>)>,
     mut q_targets: Query<&mut Targets, With<Subunit>>
 ) {
@@ -200,75 +205,114 @@ fn turret_target_dispatcher(
 
 
 const TURRET_ON_TARGET_THRESH: f32 = 0.001;  // radians
+const TURRET_FIRE_THRESH: f32 = 10. * PI / 180.;  // radians
 
 fn turret_track_and_fire_system(
     mut commands: Commands,
-    mut q_turret: Query<(&Parent, &Targets, &Subunit, &mut Velocity, &Body), With<Turret>>,
+    mut q_turret: Query<(&mut Turret, &Parent, &Targets, &Subunit, &mut Velocity, &Body), With<Turret>>,
+    projectiles: Res<ProjectileRegistry>,
+    asset_server: Res<AssetServer>,
     q_body: Query<&Body>,
+    q_unit: Query<&Unit>,
+    q_velocity: Query<&Velocity, Without<Subunit>>,
     q_debug_graphics: Query<Entity, With<DebugTurretTargetLine>>,
+    time: Res<Time>,
 ) {
     if DEBUG_GRAPHICS {
         for line in q_debug_graphics.iter() {
             commands.entity(line).despawn();
         }
     }
-    for (turret_parent, targets, subunit, mut turret_velocity, turret_body) in q_turret.iter_mut() {
+    for (mut turret, turret_parent, targets, subunit, mut turret_velocity, turret_body) in q_turret.iter_mut() {
+        let parent_unit: &Unit = q_unit.get(turret_parent.0).unwrap();
+        let parent_velocity: &Velocity = q_velocity.get(turret_parent.0).unwrap();
+        let turret_parent_body = q_body.get(turret_parent.0).unwrap();
         for target_entity in targets.deque.iter() {
             if let Ok(target_body) = q_body.get(*target_entity) {
-                if let Ok(turret_parent_body) = q_body.get(turret_parent.0) {
-                    let heading = Vec2::new(f32::cos(turret_body.position.z + turret_parent_body.position.z), f32::sin(turret_body.position.z + turret_parent_body.position.z));
-                    let abs_turret_pos = subunit.get_absolute_position(turret_body.position, turret_parent_body.position);
-                    let dist_to_dest = (target_body.position.truncate() - abs_turret_pos.truncate()).length();
-                    let target = (target_body.position.truncate() - abs_turret_pos.truncate()).normalize();
-                    let cross = target.x * heading.y - target.y * heading.x;
-                    let err = 1. - heading.dot(target);
-                    
-                    // DEBUG GRAPHICS
-                    if DEBUG_GRAPHICS {
-                        let mut path_builder = PathBuilder::new();
-                        path_builder.move_to(abs_turret_pos.truncate());
-                        path_builder.line_to(target_body.position.truncate());
-                        let line = path_builder.build();
-                        commands.spawn_bundle(GeometryBuilder::build_as(
-                            &line,
-                            DrawMode::Stroke(StrokeMode::new(
-                                Color::rgba(1., 0., 0., 0.7),
-                                1.  // Always draw the same thickness of UI elements regardless of zoom
-                            )),
-                            Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
-                        )).insert( DebugTurretTargetLine );                    
-                        let mut path_builder = PathBuilder::new();
-                        path_builder.move_to(abs_turret_pos.truncate());
-                        path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
-                        // path_builder.line_to(target_body.position.truncate());
-                        let line = path_builder.build();
-                        commands.spawn_bundle(GeometryBuilder::build_as(
-                            &line,
-                            DrawMode::Stroke(StrokeMode::new(
-                                Color::rgba(0., 1., 0., 0.5),
-                                3.  // Always draw the same thickness of UI elements regardless of zoom
-                            )),
-                            Transform { translation: Vec3::new(0., 0., 150.), ..Default::default() },
-                        )).insert( DebugTurretTargetLine );
-                        // println!("Error {} Cross {}", err, cross);
-                        if cross.abs() > TURRET_ON_TARGET_THRESH {
-                            turret_velocity.dw = 
-                            if cross > 0.0 {
-                                -0.1 * err.sqrt().min(1.)
-                            } else if cross < 0.0 {
-                                0.1 * err.sqrt().min(1.)
-                            } else {
-                                0.
-                            };  
-                        }
-                        else {
-                            // Fire!
+                let heading = Vec2::new(f32::cos(turret_body.position.z + turret_parent_body.position.z), f32::sin(turret_body.position.z + turret_parent_body.position.z));
+                let abs_turret_pos = subunit.get_absolute_position(turret_body.position, turret_parent_body.position);
+                let dist_to_dest = (target_body.position.truncate() - abs_turret_pos.truncate()).length();
+                let target = (target_body.position.truncate() - abs_turret_pos.truncate()).normalize();
+                let cross = target.x * heading.y - target.y * heading.x;
+                let err = 1. - heading.dot(target);
+                
+                if cross.abs() > TURRET_ON_TARGET_THRESH {
+                    turret_velocity.dw = 
+                    if cross > 0.0 {
+                        -0.1 * err.sqrt().min(1.)
+                    } else if cross < 0.0 {
+                        0.1 * err.sqrt().min(1.)
+                    } else {
+                        0.
+                    };  
+                }
+
+                turret.tick(time.delta());
+                if cross.abs() < TURRET_FIRE_THRESH && turret.ready() {
+                    // Fire!
+                    if let Some(projectile_data) = projectiles.get(&turret.projectile) {
+                        // Fire the projectile
+                        // TODO pass references to Player around, not Player instances
+                        // println!("Firing projectile from {}, {}!", abs_turret_pos.x, abs_turret_pos.y);
+                        commands.spawn()
+                        .insert(Projectile {
+                            fired_from: abs_turret_pos.truncate(),
+                            range: projectile_data.range,
+                            player: parent_unit.player.clone()
+                        })
+                        // TODO alternating and simultaneous modes
+                        match turret_data.firing_pattern {
                             
                         }
+                        .insert(Body::new(abs_turret_pos, Vec2::new(projectile_data.size[0], projectile_data.size[1])))
+                        .insert(Velocity {
+                            dx: heading.x * projectile_data.velocity + parent_velocity.dx,
+                            dy: heading.y * projectile_data.velocity + parent_velocity.dy,
+                            dw: 0.0
+                        })
+                        .insert_bundle( TransformBundle {
+                            local: Transform {
+                                translation: Vec3::new( abs_turret_pos.x, abs_turret_pos.y, PROJECTILE_ZORDER ),
+                                rotation: Quat::from_rotation_z( abs_turret_pos.z ),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .with_children(|parent| {
+                            for sprite_data in projectile_data.sprites.iter() {
+                                parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, PROJECTILE_ZORDER)).insert(ProjectileSprite);
+                            }
+                        });
                     }
+                    turret.reload();
                 }
-                else {
-                    println!("Could not get turret parent body")
+
+                // DEBUG GRAPHICS
+                if DEBUG_GRAPHICS {
+                    let mut path_builder = PathBuilder::new();
+                    path_builder.move_to(abs_turret_pos.truncate());
+                    path_builder.line_to(target_body.position.truncate());
+                    let line = path_builder.build();
+                    commands.spawn_bundle(GeometryBuilder::build_as(
+                        &line,
+                        DrawMode::Stroke(StrokeMode::new(
+                            Color::rgba(1., 0., 0., 0.7),
+                            1.  // Always draw the same thickness of UI elements regardless of zoom
+                        )),
+                        Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                    )).insert( DebugTurretTargetLine );                    
+                    let mut path_builder = PathBuilder::new();
+                    path_builder.move_to(abs_turret_pos.truncate());
+                    path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
+                    let line = path_builder.build();
+                    commands.spawn_bundle(GeometryBuilder::build_as(
+                        &line,
+                        DrawMode::Stroke(StrokeMode::new(
+                            Color::rgba(0., 1., 0., 0.5),
+                            3.  // Always draw the same thickness of UI elements regardless of zoom
+                        )),
+                        Transform { translation: Vec3::new(0., 0., 150.), ..Default::default() },
+                    )).insert( DebugTurretTargetLine );
                 }
             }
             else {
@@ -334,7 +378,7 @@ fn capital_ship_repulsion_system(
 }
 
 fn unit_movement_system(
-    mut query: Query<(&mut Transform, &mut Body, &mut Velocity)>,
+    mut query: Query<(&mut Transform, &mut Body, &mut Velocity), Or<(With<Unit>, With<Subunit>)>>,
     // time: Res<Time>
 ) {
     for (mut transform, mut body, mut velocity) in query.iter_mut() {
@@ -355,6 +399,32 @@ fn unit_movement_system(
         velocity.dy *= DRAG_LATERAL;
         velocity.dw *= DRAG_RADIAL;
         
+    }
+}
+
+fn projectile_movement_system(
+    mut commands: Commands,
+    mut query: Query<(Entity, &Projectile, &mut Transform, &mut Body, &Velocity), With<Projectile>>,
+    // time: Res<Time>
+) {
+    for (entity, projectile, mut transform, mut body, velocity) in query.iter_mut() {
+
+        if projectile.fired_from.distance(body.position.truncate()) > projectile.range {
+            commands.entity(entity).despawn_recursive()
+        }
+        else
+        {
+            // Update
+            body.position.x += velocity.dx;
+            body.position.y += velocity.dy;
+            body.position.z = (body.position.z + velocity.dw).rem_euclid(2. * PI);
+
+            // println!("Projectile at {}, {}, {}", body.position.x, body.position.y, body.position.z);
+
+            transform.translation.x = body.position.x;
+            transform.translation.y = body.position.y;
+            transform.rotation = Quat::from_rotation_z(body.position.z);
+        }
     }
 }
 

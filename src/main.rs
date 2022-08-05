@@ -1,5 +1,6 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
+#![allow(dead_code)]
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
@@ -8,8 +9,8 @@ use konquer::spawner::*;
 
 // Temp Const
 
-const WINDOW_W: i32 = 1000;
-const WINDOW_H: i32 = 1000;
+const WINDOW_W: i32 = 500;
+const WINDOW_H: i32 = 500;
 
 fn main() {
 	App::new()
@@ -48,21 +49,6 @@ fn test_system(
 	));
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player1.clone(), Vec3::new(150., 150., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player1.clone(), Vec3::new(600., 600., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player1.clone(), Vec3::new(250., 950., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player2.clone(), Vec3::new(1200., 1200., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player2.clone(), Vec3::new(2000., 400., 0.)
-	));
-	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player1.clone(), Vec3::new(2400., 1200., 0.)
+		"Frigate1".to_string(), player2.clone(), Vec3::new(150., 150., 0.)
 	));
 }

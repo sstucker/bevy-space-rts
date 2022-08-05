@@ -1,5 +1,5 @@
-use std::{collections::VecDeque, marker::PhantomData};
-use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}};
+use std::{collections::VecDeque, marker::PhantomData, time::Duration};
+use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}, core::Timer};
 use std::{sync::atomic::{AtomicU8, Ordering}};
 use crate::{Player, SPRITE_SCALE};
 
@@ -62,9 +62,42 @@ pub struct UnitPathDisplay;
 pub struct CapitalShip;
 
 #[derive(Component)]
+pub struct ProjectileSprite;
+
+#[derive(Component)]
+pub struct Projectile {
+    pub player: Player,
+    pub fired_from: Vec2,
+    pub range: f32
+}
+
+#[derive(Component)]
 pub struct Turret {
     pub name: String,
-    pub reload_time: f32
+    pub projectile: String,
+    pub reload_time: u64,
+    pub timer: Timer
+}
+
+impl Turret {
+    pub fn new(name: String, projectile: String, reload_time: u64) -> Self {
+        Self {
+            name: name,
+            projectile: projectile,
+            reload_time: reload_time,
+            timer: Timer::new(Duration::from_millis(reload_time), false)
+        }
+    }
+    pub fn tick(&mut self, delta: Duration) {
+        self.timer.tick(delta);
+    }
+    pub fn ready(&self) -> bool {
+        self.timer.finished()
+    }
+    pub fn reload(&mut self) {
+        self.timer = Timer::new(Duration::from_millis(self.reload_time), false);
+    }
+
 }
 
 #[derive(Component, Clone, Copy)]
@@ -233,6 +266,7 @@ impl Subunit {
         let mut abs_pos: Vec3 = Vec3::from(parent_position);
         abs_pos.x += subunit_position.x * f32::cos(parent_position.z) - subunit_position.y * f32::sin(parent_position.z);
         abs_pos.y += subunit_position.x * f32::sin(parent_position.z) + subunit_position.y * f32::cos(parent_position.z);
-        abs_pos
+        abs_pos.z += subunit_position.z;
+        return abs_pos
     }
 }

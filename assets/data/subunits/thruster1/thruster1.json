@@ -1,13 +1,12 @@
 {
     "name": "thruster1",
-    "type": "thruster",
+    "class": "thruster",
     "size": [102.0, 100.0],
-    "class": 1,
+    "hardpoint_class": 1,
     "sprites": [{
             "texture": "data\\subunits\\thruster1\\thruster1.png",
             "size": [102.0, 100.0],
-            "z-order": 0
+            "z_order": 0
         }
-
     ]
 }

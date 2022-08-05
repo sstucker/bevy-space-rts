@@ -1,10 +1,13 @@
 {
     "name": "bp1",
-    "type": "ballistic-projectile",
-    "subtype": "shell",
+    "class": "ballistic-projectile",
+    "subclass": "shell",
+    "velocity": 3.0,
+    "range": 800.0,
+    "size": [20.0, 8.0],
     "sprites": [{
         "texture": "data\\projectiles\\bp1\\bp1.png",
         "size": [20.0, 8.0],
-        "z-order": 0
+        "z_order": 0
     }]
 }

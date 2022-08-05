@@ -1,60 +1,58 @@
 {
     "name": "ship1",
-    "type": "capital",
-    "subtype": "frigate",
+    "class": "capital",
+    "subclass": "frigate",
     "hp": 100,
     "size": [1392.0, 732.0],
-    "sight-radius": 1000.0,
-    "range-radius": 500.0,
-    "forward-burn-threshold": 10.0,
-    "lateral-drag": 0.97,
-    "radial-drag": 0.95,
-    "teamcolor-sprite": {
+    "sight_radius": 1000.0,
+    "range_radius": 500.0,
+    "forward_burn_threshold": 10.0,
+    "lateral_drag": 0.97,
+    "radial_drag": 0.95,
+    "teamcolor_sprite": {
         "texture": "data\\platforms\\ship1\\layer1_teamcolor.png",
         "size": [1392.0, 732.0],
-        "z-order": 1
+        "z_order": 1
     },
     "sprites": [{
             "texture": "data\\platforms\\ship1\\layer2.png",
             "size": [1392.0, 732.0],
-            "z-order": 2
+            "z_order": 2
         },
         {
             "texture": "data\\platforms\\ship1\\layer3.png",
             "size": [1392.0, 732.0],
-            "z-order": 3
+            "z_order": 3
         }
     ],
     "hardpoints": [{
-            "type": "turret",
-            "class": 2,
-            "z-order": 3,
-            "position": [480.0, 0.0, 0.0],
-            "angle-range": [0.0, 360.0]
+            "class": "turret",
+            "hardpoint_class": 2,
+            "z_order": 3,
+            "position": [480.0, 0.0, 0.0]
         },
         {
-            "type": "turret",
-            "class": 2,
-            "z-order": 3,
-            "position": [-110.0, 0.0, 0.0],
-            "angle-range": [0.0, 360.0]
+            "class": "turret",
+            "hardpoint_class": 2,
+            "z_order": 3,
+            "position": [-110.0, 0.0, 0.0]
         },
         {
-            "type": "thruster",
-            "class": 1,
-            "z-order": 0,
+            "class": "thruster",
+            "hardpoint_class": 1,
+            "z_order": 0,
             "position": [-620.0, 80.0, 0.0]
         },
         {
-            "type": "thruster",
-            "class": 1,
-            "z-order": 0,
+            "class": "thruster",
+            "hardpoint_class": 1,
+            "z_order": 0,
             "position": [-620.0, -80.0, 0.0]
         },
         {
-            "type": "thruster",
-            "class": 1,
-            "z-order": 3,
+            "class": "thruster",
+            "hardpoint_class": 1,
+            "z_order": 3,
             "position": [-500.0, 0.0, 0.0]
         }
     ]

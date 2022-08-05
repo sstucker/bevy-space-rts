@@ -11,8 +11,6 @@ const SELECT_RECT_THRESH: f32 = 4.;  // The size of the smallest rectangle that 
 
 use crate::*;
 
-
-
 pub struct InputPlugin;
 
 pub enum MouseAction {
@@ -180,7 +178,7 @@ pub fn decode_action_system(
     q_selectable: Query<(Entity, &Body), With<Selectable>>,
     q_selected: Query<&Selected>,
     mut q_targeterable: Query<&mut Targets, (With<Targeterable>, With<Selected>)>,
-    mut q_targeteeable: Query<(Entity, &Body), With<Targeteeable>>,
+    q_targeteeable: Query<(Entity, &Body), With<Targeteeable>>,
     mut q_movable: Query<&mut UnitPath, (With<Movable>, With<Selected>)>
 ) {
     // Decode mouse actions and enqueue game actions
