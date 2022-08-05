@@ -2,7 +2,6 @@ use std::{collections::VecDeque, marker::PhantomData};
 use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}};
 use std::{sync::atomic::{AtomicU8, Ordering}};
 use crate::{Player, SPRITE_SCALE};
-use bit_vec::BitVec;
 
 
 pub fn get_components_for_entity<'a>(
