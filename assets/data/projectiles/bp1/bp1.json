@@ -1,0 +1,10 @@
+{
+    "name": "bp1",
+    "type": "ballistic-projectile",
+    "subtype": "shell",
+    "sprites": [{
+        "texture": "data\\projectiles\\bp1\\bp1.png",
+        "size": [20.0, 8.0],
+        "z-order": 0
+    }]
+}

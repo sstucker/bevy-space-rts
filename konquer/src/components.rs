@@ -64,6 +64,7 @@ pub struct CapitalShip;
 
 #[derive(Component)]
 pub struct Turret {
+    pub name: String,
     pub reload_time: f32
 }
 

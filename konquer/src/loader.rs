@@ -72,6 +72,7 @@ impl AssemblyRegistry {
 // TODO make these strongly typed?
 type SubunitData = serde_json::Value;
 type PlatformData = serde_json::Value;
+type ProjectileData = serde_json::Value;
 
 pub struct SubunitRegistry {
     collection: std::collections::HashMap<String, SubunitData>
@@ -105,7 +106,21 @@ impl PlatformRegistry {
     }
 }
 
+pub struct ProjectileDataCollection {
+    collection: std::collections::HashMap<String, ProjectileData>
+}
 
+impl ProjectileDataCollection {
+    pub fn new() -> Self {
+        Self { collection: std::collections::HashMap::new() }
+    }
+    pub fn insert(&mut self, name: String, element: ProjectileData) {
+        self.collection.insert(name, element);
+    }
+    pub fn get(&self, key: &String) -> Option<&ProjectileData> {
+        self.collection.get(key)
+    }
+}
 
 impl Plugin for AssetLoaderPlugin {
     fn build(&self, app: &mut App) {
@@ -113,6 +128,7 @@ impl Plugin for AssetLoaderPlugin {
             .insert_resource( AssemblyRegistry::new() )
             .insert_resource( SubunitRegistry::new() )
             .insert_resource( PlatformRegistry::new() )
+            .insert_resource( ProjectileDataCollection::new() )
             .insert_resource( UnitDataCollection::new() )
             .add_startup_system(load_assemblies_system)
             .add_startup_system(load_subunits_system.after(load_assemblies_system))
@@ -153,18 +169,34 @@ fn load_assemblies_system(
 
 fn load_subunits_system(
     mut registry: ResMut<SubunitRegistry>,
+    mut projectiles: ResMut<ProjectileDataCollection>,
 ) {
     for entry in glob::glob(&(SUBUNIT_DIR.to_owned() + "/**/*.json")).expect("Fatal: Invalid SUBUNIT_DIR") {
         match entry {
             Ok(path) => {
                 if let Ok(s) = std::fs::read_to_string(&path) {
-                    let data: SubunitData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
+                    let mut data: SubunitData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
                         panic!("Could not deserialize {}: {:?}", path.display(), err);
                     });
                     if let Some(v) = data.get("name") {
                         if let Some(vs) = v.as_str() {
                             let subunit_name = String::from(vs);
-                            println!("       Imported Subunit {:?}", subunit_name);
+                            if let Some(subunit_type) = data["type"].as_str() {
+                                match subunit_type {
+                                    "turret" => {
+                                        println!("       Imported Turret Subunit {:?}", subunit_name);
+                                        if let Some(projectile_path) = data["projectile"].as_str() {
+                                            if let Some(projectile_data) = load_projectile(projectile_path) {
+                                                if let Some(projectile_name) = projectile_data["name"].as_str() {
+                                                    projectiles.insert(String::from(projectile_name), projectile_data.clone());
+                                                    println!("           Imported Projectile {:?}", projectile_name);
+                                                }
+                                            }
+                                        }
+                                    },
+                                    _ => ()
+                                }
+                            }
                             registry.insert(subunit_name, data);
                         }
                     }
@@ -241,3 +273,12 @@ fn create_unit_data_system(
     }
 }
 
+pub fn load_projectile(path: &str) -> Option<ProjectileData> {
+    if let Ok(s) = std::fs::read_to_string(&path) {
+        let data: ProjectileData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
+            panic!("Could not deserialize {}: {:?}", path, err);
+        });
+        return Some(data)
+    }  
+    panic!("Could not read file {}", path);
+}

@@ -261,6 +261,10 @@ fn turret_track_and_fire_system(
                                 0.
                             };  
                         }
+                        else {
+                            // Fire!
+                            
+                        }
                     }
                 }
                 else {
