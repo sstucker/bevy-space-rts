@@ -81,7 +81,7 @@ pub fn spawn_units_system(
                                     .insert(MainSprite);
                             }
                             // Teamcolor sprite
-                            let teamsprite_data = &unit_data.platform["teamcolor-sprite"];
+                            let teamsprite_data: SpriteData = &unit_data.platform["teamcolor-sprite"];
                             // println!("Adding teamcolor sprite from {} color {:?}", teamsprite_data["texture"].as_str().unwrap(), ev.player.teamcolor);
                             parent.spawn_bundle(
                                 sprite_bundle_from_data(teamsprite_data, &asset_server, 0.)
@@ -171,7 +171,6 @@ pub fn spawn_units_system(
 // TODO strongly type?
 type TurretData = serde_json::Value;
 type HardpointData = serde_json::Value;
-type SpriteData = serde_json::Value;
 type SubunitData = serde_json::Value;
 
 fn add_turret(
@@ -184,7 +183,7 @@ fn add_turret(
     let subunit_pos = serde_to_bevy_vec3(hardpoint_data["position"].as_array().unwrap());
     let mut ec = parent.spawn();
     for sprite_data in subunit_data["sprites"].as_array().unwrap().iter() {
-        let sprite_z = (sprite_data["z-order"].as_f64().unwrap() + hardpoint_data["z-order"].as_f64().unwrap()) as f32;
+        let sprite_z = (sprite_data["z_order"].as_f64().unwrap() + hardpoint_data["z_order"].as_f64().unwrap()) as f32;
         let sprite_size = serde_to_bevy_vec2(sprite_data["size"].as_array().unwrap());
         ec.insert_bundle(SpriteBundle {
             texture: asset_server.load(sprite_data["texture"].as_str().unwrap()),
@@ -210,14 +209,14 @@ fn add_turret(
     .insert(Subunit { relative_position: Vec3::new(subunit_pos.x, subunit_pos.y, 0.) } )
     .insert(Velocity { ..Default::default() })
     .insert(Range {
-        sight: subunit_data["range-sight"].as_f64().unwrap() as f32,
-        fire: subunit_data["range-fire"].as_f64().unwrap() as f32
+        sight: subunit_data["range_sight"].as_f64().unwrap() as f32,
+        fire: subunit_data["range_fire"].as_f64().unwrap() as f32
     })
     .insert(Targets::new())
     .insert(Turret::new(
         String::from(subunit_data["name"].as_str().unwrap()),
         String::from(subunit_data["projectile"].as_str().unwrap()),
-        subunit_data["reload-time"].as_u64().unwrap()
+        subunit_data["reload_time"].as_u64().unwrap()
         )
     );
 
@@ -233,7 +232,7 @@ fn add_thruster(
     let subunit_pos = serde_to_bevy_vec3(hardpoint_data["position"].as_array().unwrap());
     let mut ec = parent.spawn();
     for sprite_data in subunit_data["sprites"].as_array().unwrap().iter() {
-        let sprite_z = (sprite_data["z-order"].as_f64().unwrap() + hardpoint_data["z-order"].as_f64().unwrap()) as f32;
+        let sprite_z = (sprite_data["z_order"].as_f64().unwrap() + hardpoint_data["z_order"].as_f64().unwrap()) as f32;
         let sprite_size = serde_to_bevy_vec2(sprite_data["size"].as_array().unwrap());
         ec.insert_bundle(SpriteBundle {
             texture: asset_server.load(sprite_data["texture"].as_str().unwrap()),
@@ -276,10 +275,11 @@ pub fn serde_to_bevy_vec3(value_vector: &Vec<serde_json::Value>) -> Vec3 {
 }
 
 pub fn sprite_bundle_from_data(sprite_data: &SpriteData, asset_server: &Res<AssetServer>, z_order: f32) -> SpriteBundle {
-    let sprite_z = sprite_data["z-order"].as_f64().unwrap() as f32 + z_order;
-    let sprite_size = serde_to_bevy_vec2(sprite_data["size"].as_array().unwrap());
+    println!("Loading {:?}", sprite_data.texture);
+    let sprite_z = sprite_data.z_order + z_order;
+    let sprite_size = Vec2::new(sprite_data.size[0], sprite_data.size[1]);
     SpriteBundle {
-        texture: asset_server.load(sprite_data["texture"].as_str().unwrap()),
+        texture: asset_server.load(&sprite_data.texture),
         sprite: Sprite {
             custom_size: Some(sprite_size * SPRITE_SCALE),
             ..Default::default()

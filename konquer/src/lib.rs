@@ -254,16 +254,16 @@ fn turret_track_and_fire_system(
                         // Fire the projectile
                         // TODO pass references to Player around, not Player instances
                         // println!("Firing projectile from {}, {}!", abs_turret_pos.x, abs_turret_pos.y);
-                        commands.spawn()
+                        let mut ec = commands.spawn()
                         .insert(Projectile {
                             fired_from: abs_turret_pos.truncate(),
                             range: projectile_data.range,
                             player: parent_unit.player.clone()
                         })
                         // TODO alternating and simultaneous modes
-                        match turret_data.firing_pattern {
+                        // match turret_data.firing_pattern {
                             
-                        }
+                        // }
                         .insert(Body::new(abs_turret_pos, Vec2::new(projectile_data.size[0], projectile_data.size[1])))
                         .insert(Velocity {
                             dx: heading.x * projectile_data.velocity + parent_velocity.dx,

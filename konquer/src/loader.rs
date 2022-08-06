@@ -72,7 +72,14 @@ impl AssemblyRegistry {
 // TODO make these strongly typed?
 type SubunitData = serde_json::Value;
 type PlatformData = serde_json::Value;
-type SpriteData = serde_json::Value;
+
+#[derive(Serialize, Deserialize)]
+pub struct SpriteData {
+    pub texture: String,
+    pub size: Vec<f32>,
+    pub z_order: f32
+}
+
 
 #[derive(Serialize, Deserialize)]
 pub struct ProjectileData {
@@ -240,7 +247,7 @@ fn load_platforms_system(
                     }
                 }  
             },
-            Err(e) => eprintln!("{:?}", e),
+            Err(e) => eprintln!("{:?}", e), 
         }
     }
 }
@@ -262,7 +269,7 @@ fn create_unit_data_system(
                 if let Some(subunit) = subunit_registry.get(subunit_name) {
                     // Verify that the hardpoint fits the subunit
                     if subunit["class"].as_str().unwrap() == hardpoint["class"].as_str().unwrap()
-                    && subunit["hardpoint-class"].as_i64().unwrap() == hardpoint["hardpoint-class"].as_i64().unwrap() {
+                    && subunit["hardpoint_class"].as_i64().unwrap() == hardpoint["hardpoint_class"].as_i64().unwrap() {
                         loadout.push(subunit.clone());
                     }
                     else {

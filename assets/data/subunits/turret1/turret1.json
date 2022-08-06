@@ -6,6 +6,7 @@
     "acceleration": 500,
     "sight_range": 1000.0,
     "fire_range": 800.0,
+    "angle_on_target": 10.0,
     "size": [168.0, 162.0],
     "hardpoint_class": 2,
     "projectile": "bp1",
