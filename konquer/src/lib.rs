@@ -233,7 +233,7 @@ fn turret_track_and_fire_system(
         for target_entity in targets.deque.iter() {
             if let Ok(target_body) = q_body.get(*target_entity) {
                 let heading = Vec2::new(f32::cos(turret_body.position.z + turret_parent_body.position.z), f32::sin(turret_body.position.z + turret_parent_body.position.z));
-                let abs_turret_pos = subunit.get_absolute_position(turret_body.position, turret_parent_body.position);
+                let abs_turret_pos = get_absolute_position(turret_body.position, turret_parent_body.position);
                 let dist_to_dest = (target_body.position.truncate() - abs_turret_pos.truncate()).length();
                 let target = (target_body.position.truncate() - abs_turret_pos.truncate()).normalize();
                 let cross = target.x * heading.y - target.y * heading.x;
@@ -254,38 +254,47 @@ fn turret_track_and_fire_system(
                 if cross.abs() < TURRET_FIRE_THRESH && turret.ready() {
                     // Fire!
                     if let Some(projectile_data) = projectiles.get(&turret.projectile) {
-                        // Fire the projectile
-                        // TODO pass references to Player around, not Player instances
-                        // println!("Firing projectile from {}, {}!", abs_turret_pos.x, abs_turret_pos.y);
-                        let mut ec = commands.spawn()
-                        .insert(Projectile {
-                            fired_from: abs_turret_pos.truncate(),
-                            range: projectile_data.range,
-                            player: parent_unit.player.clone()
-                        })
-                        // TODO alternating and simultaneous modes
-                        // match turret_data.firing_pattern {
-                            
-                        // }
-                        .insert(Body::new(abs_turret_pos, Vec2::new(projectile_data.size[0], projectile_data.size[1])))
-                        .insert(Velocity {
-                            dx: heading.x * projectile_data.velocity + parent_velocity.dx,
-                            dy: heading.y * projectile_data.velocity + parent_velocity.dy,
-                            dw: 0.0
-                        })
-                        .insert_bundle( TransformBundle {
-                            local: Transform {
-                                translation: Vec3::new( abs_turret_pos.x, abs_turret_pos.y, PROJECTILE_ZORDER ),
-                                rotation: Quat::from_rotation_z( abs_turret_pos.z ),
+                        let mut fire_projectile = |fire_from: Vec3| {
+                            let mut ec = commands.spawn();
+                            ec.insert(Projectile {
+                                fired_from: fire_from.truncate(),
+                                range: projectile_data.range,
+                                player: parent_unit.player.clone()
+                            });
+                            ec
+                            .insert(Body::new(fire_from, Vec2::new(projectile_data.size[0], projectile_data.size[1])))
+                            .insert(Velocity {
+                                dx: heading.x * projectile_data.velocity + parent_velocity.dx,
+                                dy: heading.y * projectile_data.velocity + parent_velocity.dy,
+                                dw: 0.0
+                            })
+                            .insert_bundle( TransformBundle {
+                                local: Transform {
+                                    translation: Vec3::new( fire_from.x, fire_from.y, PROJECTILE_ZORDER ),
+                                    rotation: Quat::from_rotation_z( fire_from.z ),
+                                    ..Default::default()
+                                },
                                 ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .with_children(|parent| {
-                            for sprite_data in projectile_data.sprites.iter() {
-                                parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, PROJECTILE_ZORDER)).insert(ProjectileSprite);
+                            })
+                            .with_children(|parent| {
+                                for sprite_data in projectile_data.sprites.iter() {
+                                    parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, PROJECTILE_ZORDER)).insert(ProjectileSprite);
+                                }
+                            });
+                        };
+
+                        // TODO alternating and simultaneous modes
+                        match turret.firing_pattern.as_str() {
+                            // "alternating" => {
+
+                            // },
+                            _ => {  // Default to simultaneous
+                                for source in turret.sources.iter() {
+                                    let source_pos = get_absolute_position(source.extend(0.), abs_turret_pos);
+                                    fire_projectile(source_pos);
+                                }
                             }
-                        });
+                        }
                     }
                     turret.reload();
                 }
@@ -471,4 +480,12 @@ fn map_system(
             draw_gridline(Vec2::new(x as f32, 0.), Vec2::new(x as f32, MAP_H as f32));
         }
     });
+}
+
+pub fn get_absolute_position(subunit_position: Vec3, parent_position: Vec3) -> Vec3 {
+    let mut abs_pos: Vec3 = Vec3::from(parent_position);
+    abs_pos.x += subunit_position.x * f32::cos(parent_position.z) - subunit_position.y * f32::sin(parent_position.z);
+    abs_pos.y += subunit_position.x * f32::sin(parent_position.z) + subunit_position.y * f32::cos(parent_position.z);
+    abs_pos.z += subunit_position.z;
+    return abs_pos
 }

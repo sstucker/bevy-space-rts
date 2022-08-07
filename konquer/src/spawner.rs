@@ -45,7 +45,7 @@ pub fn spawn_units_system(
             let body = Body::new(ev.position, unit_size);
             ec.insert( Hp { max: unit_hitpoints, current: unit_hitpoints } );
             ec.insert( body );
-            match unit_data.platform.classdata.clone() {
+            match unit_data.platform.class.clone() {
                 PlatformClassData::Capital { range_radius, forward_burn_threshold, lateral_drag, radial_drag } => {
                     ec.insert( Velocity { ..Default::default() } );
                     // TODO error checking
@@ -189,16 +189,22 @@ fn add_subunit(
         )
     )
     .insert(Subunit { relative_position: Vec3::new(subunit_pos.x, subunit_pos.y, 0.) } );
-    match subunit_data.classdata.clone() {
-        SubunitClassData::Turret { reload_time, acceleration, sight_range, fire_range, angle_on_target, projectile, firing_pattern, sources } => {
+    match subunit_data.class.clone() {
+        SubunitClassData::Turret { reload_time, acceleration, fire_range, angle_on_target, projectile, firing_pattern, sources } => {
+            let mut vsources: Vec<Vec2> = Vec::with_capacity(sources.len());
+            for source in sources.iter() {
+                vsources.push(Vec2::new(source[0], source[1]));
+            }
             ec.insert(Turret::new(
                 String::from(&subunit_data.name),
                 String::from(projectile),
-                reload_time
+                reload_time,
+                firing_pattern,
+                vsources
             ))
             .insert(Velocity { ..Default::default() })
             .insert(Range {
-                sight: sight_range,
+                sight: fire_range,
                 fire: fire_range
             })
             .insert(Targets::new());
@@ -213,7 +219,6 @@ fn add_subunit(
 }
 
 pub fn sprite_bundle_from_data(sprite_data: &SpriteData, asset_server: &Res<AssetServer>, z_order: f32) -> SpriteBundle {
-    println!("Loading {:?}", sprite_data.texture);
     let sprite_z = sprite_data.z_order + z_order;
     let sprite_size = Vec2::new(sprite_data.size[0], sprite_data.size[1]);
     SpriteBundle {

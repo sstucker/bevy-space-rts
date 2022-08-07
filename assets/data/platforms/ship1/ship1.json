@@ -1,7 +1,7 @@
 {
     "name": "ship1",
-    "class": "Capital",
-    "Capital": {
+    "class": {
+        "name": "Capital",
         "range_radius": 500.0,
         "forward_burn_threshold": 10.0,
         "lateral_drag": 0.97,
@@ -28,31 +28,31 @@
         }
     ],
     "hardpoints": [{
-            "class": "turret",
+            "class_name": "turret",
             "hardpoint_size": 2,
             "z_order": 3,
             "position": [480.0, 0.0, 0.0]
         },
         {
-            "class": "turret",
+            "class_name": "turret",
             "hardpoint_size": 2,
             "z_order": 3,
             "position": [-110.0, 0.0, 0.0]
         },
         {
-            "class": "thruster",
+            "class_name": "thruster",
             "hardpoint_size": 1,
             "z_order": 0,
             "position": [-620.0, 80.0, 0.0]
         },
         {
-            "class": "thruster",
+            "class_name": "thruster",
             "hardpoint_size": 1,
             "z_order": 0,
             "position": [-620.0, -80.0, 0.0]
         },
         {
-            "class": "thruster",
+            "class_name": "thruster",
             "hardpoint_size": 1,
             "z_order": 3,
             "position": [-500.0, 0.0, 0.0]

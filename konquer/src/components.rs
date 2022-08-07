@@ -71,21 +71,26 @@ pub struct Projectile {
     pub range: f32
 }
 
+
 #[derive(Component)]
 pub struct Turret {
     pub name: String,
     pub projectile: String,
     pub reload_time: u64,
-    pub timer: Timer
+    pub timer: Timer,
+    pub firing_pattern: String,
+    pub sources: Vec<Vec2>
 }
 
 impl Turret {
-    pub fn new(name: String, projectile: String, reload_time: u64) -> Self {
+    pub fn new(name: String, projectile: String, reload_time: u64, firing_pattern: String, sources: Vec<Vec2>) -> Self {
         Self {
-            name: name,
-            projectile: projectile,
-            reload_time: reload_time,
-            timer: Timer::new(Duration::from_millis(reload_time), false)
+            name,
+            projectile,
+            reload_time,
+            timer: Timer::new(Duration::from_millis(reload_time), false),
+            firing_pattern,
+            sources
         }
     }
     pub fn tick(&mut self, delta: Duration) {
@@ -261,12 +266,3 @@ pub struct Subunit {
     pub relative_position: Vec3,
 }
 
-impl Subunit {
-    pub fn get_absolute_position(&self, subunit_position: Vec3, parent_position: Vec3) -> Vec3 {
-        let mut abs_pos: Vec3 = Vec3::from(parent_position);
-        abs_pos.x += subunit_position.x * f32::cos(parent_position.z) - subunit_position.y * f32::sin(parent_position.z);
-        abs_pos.y += subunit_position.x * f32::sin(parent_position.z) + subunit_position.y * f32::cos(parent_position.z);
-        abs_pos.z += subunit_position.z;
-        return abs_pos
-    }
-}

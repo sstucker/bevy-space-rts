@@ -221,8 +221,7 @@ fn create_unit_data_system(
                 println!("        Assembling from subunit {}", subunit_name);
                 if let Some(subunit) = subunit_registry.get(subunit_name) {
                     // Verify that the hardpoint fits the subunit
-                    if subunit.class == hardpoint.class
-                    && subunit.hardpoint_size == hardpoint.hardpoint_size {
+                    if subunit.hardpoint_size == hardpoint.hardpoint_size {
                         loadout.push(subunit.clone());
                     }
                     else {

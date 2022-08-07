@@ -1,8 +1,8 @@
 {
     "name": "thruster1",
-    "class": "Thruster",
-    "Thruster":
+    "class":
     {
+        "name": "Thruster",
         "forward_thrust": 1.0
     },
     "subclass": "ThrusterThruster",
