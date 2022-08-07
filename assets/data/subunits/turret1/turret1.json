@@ -1,25 +1,26 @@
 {
     "name": "turret1",
-    "class": "turret",
-    "subclass": "ballistic",
-    "reload_time": 500,
-    "acceleration": 500,
-    "sight_range": 1000.0,
-    "fire_range": 800.0,
-    "angle_on_target": 10.0,
+    "class": "Turret",
+    "Turret":
+    {
+        "reload_time": 500,
+        "acceleration": 500,
+        "fire_range": 800.0,
+        "angle_on_target": 10.0,
+        "hardpoint_size": 2,
+        "projectile": "bp1",
+        "firing_pattern": "alternating",
+        "sources": [
+            [10.0, 10.0],
+            [10.0, -10.0]
+        ]
+    },
+    "subclass": "Ballistic",
+    "hardpoint_size": 2,
     "size": [168.0, 162.0],
-    "hardpoint_class": 2,
-    "projectile": "bp1",
-    "firing_pattern": "alternating",
-    "sources": [
-        [10.0, 10.0],
-        [10.0, -10.0]
-    ],
     "sprites": [{
             "texture": "data\\subunits\\turret1\\turret1.png",
             "size": [168.0, 162.0],
-            "z_order": 0
         }
-
     ]
 }

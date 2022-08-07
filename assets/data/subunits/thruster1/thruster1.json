@@ -1,8 +1,13 @@
 {
     "name": "thruster1",
-    "class": "thruster",
+    "class": "Thruster",
+    "Thruster":
+    {
+        "forward_thrust": 1.0
+    },
+    "subclass": "ThrusterThruster",
+    "hardpoint_size": 1,
     "size": [102.0, 100.0],
-    "hardpoint_class": 1,
     "sprites": [{
         "texture": "data\\subunits\\thruster1\\thruster1.png",
         "size": [102.0, 100.0],

@@ -11,23 +11,6 @@ use crate::*;
 
 pub struct AssetLoaderPlugin;
 
-pub struct UnitData {
-    pub name: String,
-    pub platform: PlatformData,
-    pub loadout: Vec<SubunitData>
-}
-
-impl UnitData {
-    pub fn new(name: String, platform_data: PlatformData, subunit_data: Vec<SubunitData>) -> Self {
-        Self {
-            name: name,
-            platform: platform_data,
-            loadout: subunit_data
-        }
-    }
-}
-
-
 pub struct UnitDataCollection {
     collection: std::collections::HashMap<String, UnitData>,
 }
@@ -67,29 +50,6 @@ impl AssemblyRegistry {
     pub fn push(&mut self, item: AssemblyData) {
         self.assemblies.push(item);
     }
-}
-
-// TODO make these strongly typed?
-type SubunitData = serde_json::Value;
-type PlatformData = serde_json::Value;
-
-#[derive(Serialize, Deserialize)]
-pub struct SpriteData {
-    pub texture: String,
-    pub size: Vec<f32>,
-    pub z_order: f32
-}
-
-
-#[derive(Serialize, Deserialize)]
-pub struct ProjectileData {
-    pub name: String,
-    pub class: String,
-    pub subclass: String,
-    pub velocity: f32,
-    pub range: f32,
-    pub size: Vec<f32>,
-    pub sprites: Vec<SpriteData>
 }
 
 pub struct SubunitRegistry {
@@ -195,7 +155,7 @@ fn load_projectiles_system(
             Ok(path) => {
                 if let Ok(s) = std::fs::read_to_string(&path) {
                     let data: ProjectileData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
-                        panic!("Could not deserialize {}: {:?}", path.display(), err);
+                        panic!("Could not deserialize projectile {}: {:?}", path.display(), err);
                     });
                     let projectile_name = String::from(&data.name);
                     println!("       Imported Projectile {:?}", projectile_name);
@@ -215,15 +175,10 @@ fn load_subunits_system(
             Ok(path) => {
                 if let Ok(s) = std::fs::read_to_string(&path) {
                     let data: SubunitData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
-                        panic!("Could not deserialize {}: {:?}", path.display(), err);
+                        panic!("Could not deserialize subunit {}: {:?}", path.display(), err);
                     });
-                    if let Some(v) = data.get("name") {
-                        if let Some(vs) = v.as_str() {
-                            let subunit_name = String::from(vs);
-                            println!("       Imported Subunit {:?}", subunit_name);
-                            registry.insert(subunit_name, data);
-                        }
-                    }
+                    println!("       Imported Subunit {:?}", data.name);
+                    registry.insert(data.name.replace("\"", ""), data);
                 }  
             },
             Err(e) => eprintln!("{:?}", e),
@@ -239,12 +194,10 @@ fn load_platforms_system(
             Ok(path) => {
                 if let Ok(s) = std::fs::read_to_string(&path) {
                     let data: PlatformData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
-                        panic!("Could not deserialize {}: {:?}", path.display(), err);
+                        panic!("Could not deserialize platform {}: {:?}", path.display(), err);
                     });
-                    if let Some(platform_name) = data.get("name") {
-                        println!("       Imported Platform {:?}", platform_name.to_string().replace("\"", ""));
-                        registry.insert(platform_name.to_string().replace("\"", ""), data);
-                    }
+                    println!("       Imported Platform {:?}", data.name);
+                    registry.insert(data.name.replace("\"", ""), data);
                 }  
             },
             Err(e) => eprintln!("{:?}", e), 
@@ -262,14 +215,14 @@ fn create_unit_data_system(
     'assemblies: for assembly in assembly_registry.assemblies.iter() {
         println!("    Loading unit {}", assembly.name);
         println!("        Assembling on platform {}", assembly.platform);
-        if let Some(platform) = platform_registry.get(&assembly.platform).clone(){
+        if let Some(platform) = platform_registry.get(&assembly.platform) {
             let mut loadout: Vec<SubunitData> = Vec::new();
-            for (subunit_name, hardpoint) in zip(assembly.loadout.iter(), platform["hardpoints"].as_array().unwrap()) {
+            for (subunit_name, hardpoint) in zip(assembly.loadout.iter(), platform.hardpoints.iter()) {
                 println!("        Assembling from subunit {}", subunit_name);
                 if let Some(subunit) = subunit_registry.get(subunit_name) {
                     // Verify that the hardpoint fits the subunit
-                    if subunit["class"].as_str().unwrap() == hardpoint["class"].as_str().unwrap()
-                    && subunit["hardpoint_class"].as_i64().unwrap() == hardpoint["hardpoint_class"].as_i64().unwrap() {
+                    if subunit.class == hardpoint.class
+                    && subunit.hardpoint_size == hardpoint.hardpoint_size {
                         loadout.push(subunit.clone());
                     }
                     else {
@@ -300,7 +253,7 @@ fn create_unit_data_system(
 pub fn load_projectile(path: &str) -> Option<ProjectileData> {
     if let Ok(s) = std::fs::read_to_string(&path) {
         let data: ProjectileData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
-            panic!("Could not deserialize {}: {:?}", path, err);
+            panic!("Could not deserialize projectile {}: {:?}", path, err);
         });
         return Some(data)
     }  

@@ -10,6 +10,9 @@ use bevy_prototype_lyon::prelude::*;
 
 use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, f32::consts::PI};
 
+pub mod data;
+pub use data::*;
+
 pub mod quadtree;
 pub use quadtree::*;
 
