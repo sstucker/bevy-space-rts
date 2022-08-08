@@ -2,7 +2,7 @@
     "name": "turret1",
     "class": {
         "name": "Turret",
-        "reload_time": 100,
+        "reload_time": 500,
         "acceleration": 500,
         "fire_range": 800.0,
         "angle_on_target": 5.0,

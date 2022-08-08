@@ -5,8 +5,8 @@
         "damage_per_max_hp": 0.1
     },
     "subclass": "shell",
-    "velocity": 2.0,
-    "damage": 2.0,
+    "velocity": 1.0,
+    "damage": 6.0,
     "range": 300.0,
     "size": [20.0, 8.0],
     "sprites": [{

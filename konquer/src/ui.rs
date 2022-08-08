@@ -78,7 +78,7 @@ pub fn ui_show_hp_system(
         }
         let healthbar = path_builder.build();
         commands.spawn_bundle(GeometryBuilder::build_as(
-            &healthbar,
+            &outline,
             DrawMode::Outlined {
                 fill_mode: FillMode::color(Color::rgba(0.4, 0.4, 0.4, 0.5)),
                 outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
@@ -86,7 +86,7 @@ pub fn ui_show_hp_system(
             Transform { translation: Vec3::new(0., 0., UI_ZORDER + 9.), ..Default::default() },
         )).insert( HealthBar );
         commands.spawn_bundle(GeometryBuilder::build_as(
-            &outline,
+            &healthbar,
             DrawMode::Outlined {
                 fill_mode: FillMode::color(hp_color),
                 outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),

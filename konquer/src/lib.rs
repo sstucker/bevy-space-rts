@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 use bevy::ecs::entity;
+use bevy::render::render_resource::Texture;
 use bevy::{prelude::*};
 use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
@@ -54,7 +55,21 @@ const USER_ID: u8 = 0;
 
 type WindowSize = Vec2;
 
-// -- UnitPlugin --------------------------------------------
+pub struct TextureServer {
+    collection: std::collections::HashMap<String, Handle<TextureAtlas>>
+}
+
+impl TextureServer {
+    pub fn new() -> Self {
+        Self { collection: std::collections::HashMap::new() }
+    }
+    pub fn insert(&mut self, name: String, element: Handle<TextureAtlas>) {
+        self.collection.insert(name, element);
+    }
+    pub fn get(&self, key: &String) -> Option<&Handle<TextureAtlas>> {
+        self.collection.get(key)
+    }
+}
 
 pub struct UnitPlugin;
 
@@ -77,6 +92,7 @@ impl Plugin for UnitPlugin {
         //     .add_system(player_fire_system);
         app
             .insert_resource(Msaa { samples: 4 })
+            .insert_resource( TextureServer::new() )
             .add_plugin(ShapePlugin)
             .add_plugin(InputPlugin)
             .add_plugin(AssetLoaderPlugin)
@@ -90,6 +106,7 @@ impl Plugin for UnitPlugin {
                 .with_system(unit_movement_system).label(Stage::Kinematics)
                 .with_system(projectile_movement_system)
                 .with_system(capital_ship_repulsion_system)
+                .with_system(capital_ship_destruction_system)
                 .with_system(projectile_collision_system)
                 .with_system(turret_target_dispatcher)
                 .with_system(unit_pathing_system)
@@ -102,6 +119,8 @@ impl Plugin for UnitPlugin {
             .add_system(ui_highlight_selected_system)
             .add_system(ui_show_path_system)
             .add_system(ui_show_hp_system)
+            .add_system(explosion_to_spawn_system)
+            .add_system(explosion_animation_system)
             // Mechanics
             .add_system(spawn_units_system)
             // .add_system(teamcolor_system) TODO
@@ -129,10 +148,13 @@ impl Player {
 fn startup_system(
     mut commands: Commands,
     windows: Res<Windows>,
+    mut texture_server: ResMut<TextureServer>,
+    asset_server: Res<AssetServer>,
 ) {
     let window = windows.get_primary().unwrap();
     let window_size = WindowSize::new(window.width(), window.height());
 	commands.insert_resource(window_size);
+    texture_server.insert(String::from("data\\fx\\explo_a_sheet.png"), asset_server.load("data\\fx\\explo_a_sheet.png"));
 }
 
 // TODO add these as parameters for various units
@@ -331,6 +353,61 @@ fn turret_track_and_fire_system(
     }
 }
 
+fn explosion_to_spawn_system(
+	mut commands: Commands,
+	query: Query<(Entity, &ExplosionToSpawn)>,
+    texture_server: Res<TextureServer>
+) {
+	for (explosion_spawn_entity, explosion_to_spawn) in query.iter() {
+		// spawn the explosion sprite
+		if let Some(texture) = texture_server.get(&String::from("data\\fx\\explo_a_sheet.png")) {
+            commands
+                .spawn_bundle(SpriteSheetBundle {
+                    texture_atlas: texture.clone(),
+                    transform: Transform {
+                        translation: explosion_to_spawn.0,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(Explosion)
+                .insert(ExplosionTimer::default());
+    
+            // despawn the explosionToSpawn
+            commands.entity(explosion_spawn_entity).despawn();
+        }
+	}
+}
+
+fn explosion_animation_system(
+	mut commands: Commands,
+	time: Res<Time>,
+	mut query: Query<(Entity, &mut ExplosionTimer, &mut TextureAtlasSprite), With<Explosion>>,
+) {
+	for (entity, mut timer, mut sprite) in query.iter_mut() {
+		// println!("Timer tickin");
+        timer.0.tick(time.delta());
+		if timer.0.finished() {
+			sprite.index += 1; // move to next sprite cell
+			if sprite.index >= 16 {  // TODO manage fx sheets
+				commands.entity(entity).despawn()
+			}
+		}
+	}
+}
+
+fn capital_ship_destruction_system(
+    mut commands: Commands,
+    q_capitals: Query<(Entity, &Body, &Hp), With<CapitalShip>>
+) {
+    for (entity, body, hp) in q_capitals.iter() {
+        if hp.current == 0 {
+            commands.spawn().insert(ExplosionToSpawn(body.position));
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
 
 fn projectile_collision_system(
     mut commands: Commands,
@@ -387,14 +464,13 @@ fn capital_ship_repulsion_system(
     q_debug: Query<Entity, With<DebugCollisionCheckLine>>,
     q_capitals: Query<(Entity, &Body), With<CapitalShip>>,
     mut q_velocity: Query<&mut Velocity, With<CapitalShip>>,
-    mut qtree: ResMut<CollisionQuadtree>
 ) { 
     if DEBUG_GRAPHICS {
         for line in q_debug.iter() {
             commands.entity(line).despawn();
         }
     }
-    qtree.clear();
+    let mut qtree = CollisionQuadtree::new(0, Rectangle2D { x: 0., y: 0., width: MAP_W as f32, height: MAP_H as f32 });
     for (entity, body) in q_capitals.iter() {
         qtree.insert(EntityBody { entity: entity, position: body.position.truncate(), radius: body.repulsion_radius })
     }
@@ -404,6 +480,18 @@ fn capital_ship_repulsion_system(
         qtree.retrieve(body.position.truncate(), body.repulsion_radius, &mut colliders);
         for e in colliders.iter() {
             if e.entity.id() != entity.id() {
+                let distance = body.position.truncate().distance(e.position);
+                if distance < (e.radius + body.repulsion_radius) {
+                    let heading = (body.position.truncate() - e.position).normalize();
+                    if let Ok(mut v1) = q_velocity.get_mut(e.entity) {
+                        v1.dx -= heading.x * 1. / (distance * 4.);
+                        v1.dy -= heading.y * 1. / (distance * 4.);
+                    }
+                    if let Ok(mut v2) = q_velocity.get_mut(entity) {
+                        v2.dx += heading.x * 1. / (distance * 4.);
+                        v2.dy += heading.y * 1. / (distance * 4.);      
+                    }
+                } 
                 if DEBUG_GRAPHICS {
                     let mut path_builder = PathBuilder::new();
                     path_builder.move_to(e.position);
@@ -417,20 +505,7 @@ fn capital_ship_repulsion_system(
                         )),
                         Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
                     )).insert( DebugCollisionCheckLine );  
-    
-                    let distance = body.position.truncate().distance(e.position);
-                    if distance < (e.radius + body.repulsion_radius) {
-                        let heading = (body.position.truncate() - e.position).normalize();
-                        if let Ok(mut v1) = q_velocity.get_mut(e.entity) {
-                            v1.dx -= heading.x * 1. / (distance * 4.);
-                            v1.dy -= heading.y * 1. / (distance * 4.);
-                        }
-                        if let Ok(mut v2) = q_velocity.get_mut(entity) {
-                            v2.dx += heading.x * 1. / (distance * 4.);
-                            v2.dy += heading.y * 1. / (distance * 4.);      
-                        }
-                    }
-                }    
+                }
             }
         }
     }
