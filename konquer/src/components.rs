@@ -44,6 +44,9 @@ pub struct DebugRepulsionRadius;
 pub struct DebugCollisionCheckLine;
 
 #[derive(Component)]
+pub struct DebugProjectileCollisionCheckLine;
+
+#[derive(Component)]
 pub struct GridLine;
 
 #[derive(Component)]
@@ -79,7 +82,8 @@ pub struct Turret {
     pub reload_time: u64,
     pub timer: Timer,
     pub firing_pattern: String,
-    pub sources: Vec<Vec2>
+    pub sources: Vec<Vec2>,
+    source_index: usize
 }
 
 impl Turret {
@@ -90,7 +94,18 @@ impl Turret {
             reload_time,
             timer: Timer::new(Duration::from_millis(reload_time), false),
             firing_pattern,
-            sources
+            sources,
+            source_index: 0
+        }
+    }
+    pub fn get_sources(&self) -> Vec<Vec2> {
+        match self.firing_pattern.as_str() {
+            "alternating" => {
+                let mut v: Vec<Vec2> = Vec::new();
+                v.push(self.sources[self.source_index]);
+                return v
+            },
+            _ => return self.sources.clone()
         }
     }
     pub fn tick(&mut self, delta: Duration) {
@@ -101,6 +116,7 @@ impl Turret {
     }
     pub fn reload(&mut self) {
         self.timer = Timer::new(Duration::from_millis(self.reload_time), false);
+        self.source_index = (self.source_index + 1).rem_euclid(self.sources.len());
     }
 
 }
@@ -126,8 +142,8 @@ impl Body {
             position: position,
             size: size,
             repulsion_radius: (size.x + size.y) * SPRITE_SCALE / 2.5,
-            selection_radius: (size.x + size.y) * SPRITE_SCALE / 4.,
-            collision_radius: (size.x + size.y) * SPRITE_SCALE / 5.,
+            collision_radius: (size.x + size.y) * SPRITE_SCALE / 3.,
+            selection_radius: (size.x + size.y) * SPRITE_SCALE / 3.,
         }
     }
 }
@@ -148,6 +164,9 @@ impl Default for Velocity {
         }
     }
 }
+
+#[derive(Component)]
+pub struct HealthBar;
 
 #[derive(Component)]
 pub struct Hp {

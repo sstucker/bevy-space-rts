@@ -88,8 +88,9 @@ impl Plugin for UnitPlugin {
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(turret_track_and_fire_system).label(Stage::Kinematics)
                 .with_system(unit_movement_system).label(Stage::Kinematics)
-                .with_system(projectile_movement_system).label(Stage::Kinematics)
+                .with_system(projectile_movement_system)
                 .with_system(capital_ship_repulsion_system)
+                .with_system(projectile_collision_system)
                 .with_system(turret_target_dispatcher)
                 .with_system(unit_pathing_system)
             )
@@ -100,6 +101,7 @@ impl Plugin for UnitPlugin {
             // Graphics
             .add_system(ui_highlight_selected_system)
             .add_system(ui_show_path_system)
+            .add_system(ui_show_hp_system)
             // Mechanics
             .add_system(spawn_units_system)
             // .add_system(teamcolor_system) TODO
@@ -264,8 +266,10 @@ fn turret_track_and_fire_system(
                             ec
                             .insert(Body::new(fire_from, Vec2::new(projectile_data.size[0], projectile_data.size[1])))
                             .insert(Velocity {
-                                dx: heading.x * projectile_data.velocity + parent_velocity.dx,
-                                dy: heading.y * projectile_data.velocity + parent_velocity.dy,
+                                // dx: heading.x * projectile_data.velocity + parent_velocity.dx,
+                                // dy: heading.y * projectile_data.velocity + parent_velocity.dy,
+                                dx: heading.x * projectile_data.velocity,
+                                dy: heading.y * projectile_data.velocity,
                                 dw: 0.0
                             })
                             .insert_bundle( TransformBundle {
@@ -282,18 +286,10 @@ fn turret_track_and_fire_system(
                                 }
                             });
                         };
-
-                        // TODO alternating and simultaneous modes
-                        match turret.firing_pattern.as_str() {
-                            // "alternating" => {
-
-                            // },
-                            _ => {  // Default to simultaneous
-                                for source in turret.sources.iter() {
-                                    let source_pos = get_absolute_position(source.extend(0.), abs_turret_pos);
-                                    fire_projectile(source_pos);
-                                }
-                            }
+                        for source in turret.get_sources().iter() {
+                            let source_pos =
+                                get_absolute_position(source.extend(0.), abs_turret_pos);
+                            fire_projectile(source_pos);
                         }
                     }
                     turret.reload();
@@ -329,6 +325,54 @@ fn turret_track_and_fire_system(
             }
             else {
                 println!("Could not get target body")
+            }
+        }
+    }
+}
+
+
+fn projectile_collision_system(
+    mut commands: Commands,
+    q_debug: Query<Entity, With<DebugProjectileCollisionCheckLine>>,
+    q_units: Query<(Entity, &Unit, &Body), With<Unit>>,
+    q_projectiles: Query<(Entity, &Projectile, &Body), With<Projectile>>,
+) { 
+    if DEBUG_GRAPHICS {
+        for line in q_debug.iter() {
+            commands.entity(line).despawn();
+        }
+    }
+    let mut qtree = CollisionQuadtree::new(0, Rectangle2D { x: 0., y: 0., width: MAP_W as f32, height: MAP_H as f32 });
+    for (entity, _, body) in q_projectiles.iter() {
+        qtree.insert(EntityBody { entity: entity, position: body.position.truncate(), radius: body.collision_radius })
+    }
+    let mut colliders: Vec<EntityBody> = Vec::new();
+    for (unit_e, unit, unit_body) in q_units.iter() {
+        colliders.clear();
+        qtree.retrieve(unit_body.position.truncate(), unit_body.collision_radius, &mut colliders);
+        for projectile_eb in colliders.iter() {
+            if let Ok((projectile_e, projectile, projectile_body)) = q_projectiles.get(projectile_eb.entity) {
+                if unit.player.id != projectile.player.id {  // Friendly fire off
+                    
+                    let distance = unit_body.position.truncate().distance(projectile_body.position.truncate());
+                    if distance < (projectile_body.collision_radius + unit_body.collision_radius) {
+                        commands.entity(projectile_e).despawn_recursive();
+                    }
+                    if DEBUG_GRAPHICS {
+                        let mut path_builder = PathBuilder::new();
+                        path_builder.move_to(projectile_eb.position);
+                        path_builder.line_to(unit_body.position.truncate());
+                        let line = path_builder.build();
+                        commands.spawn_bundle(GeometryBuilder::build_as(
+                            &line,
+                            DrawMode::Stroke(StrokeMode::new(
+                                Color::rgba(1., 0., 1., 0.5),
+                                1.
+                            )),
+                            Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                        )).insert( DebugProjectileCollisionCheckLine );  
+                    }    
+                }
             }
         }
     }

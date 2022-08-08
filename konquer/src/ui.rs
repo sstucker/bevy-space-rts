@@ -1,7 +1,7 @@
 use std::f32::consts::E;
 
 use bevy_prototype_lyon::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, ecs::query};
 
 use crate::*;
 
@@ -36,6 +36,38 @@ pub fn ui_highlight_selected_system(
         });
     }
 }
+
+
+pub fn ui_show_hp_system(
+    mut commands: Commands,
+    q_units: Query<(&Unit, &Hp, &Body), With<Hp>>,
+    q_healthbar: Query<Entity, With<HealthBar>>,
+    q_camera: Query<&OrthographicProjection, With<Camera>>,
+) {
+    for bar in q_healthbar.iter() {
+        commands.entity(bar).despawn();
+    }
+    let projection = q_camera.single();
+    for (unit, hp, body) in q_units.iter() {
+        let mut path_builder = PathBuilder::new();
+        let p = body.position.truncate() - body.size * 0.8;
+        path_builder.move_to(p);
+        path_builder.line_to(p + Vec2::new(0., 500.));
+        path_builder.line_to(p + Vec2::new(-100., 500.));
+        path_builder.line_to(p + Vec2::new(-100., 0.));
+        path_builder.line_to(p + Vec2::new(0., 0.));
+        let line = path_builder.build();
+        commands.spawn_bundle(GeometryBuilder::build_as(
+            &line,
+            DrawMode::Outlined {
+                fill_mode: FillMode::color(Color::GREEN),
+                outline_mode: StrokeMode::new(Color::GREEN, 1. * projection.scale),
+            },
+            Transform { translation: Vec3::new(0., 0., UI_ZORDER + 10.), ..Default::default() },
+        )).insert( HealthBar );
+    }
+}
+
 
 pub fn ui_show_path_system(
     mut commands: Commands,
