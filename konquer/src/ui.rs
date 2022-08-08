@@ -50,18 +50,18 @@ pub fn ui_show_hp_system(
     let projection = q_camera.single();
     for (unit, hp, body) in q_units.iter() {
         let mut path_builder = PathBuilder::new();
-        let p = body.position.truncate() - body.size * 0.8;
+        let p = body.position.truncate() - (body.size * 0.8 * SPRITE_SCALE);
         path_builder.move_to(p);
-        path_builder.line_to(p + Vec2::new(0., 500.));
-        path_builder.line_to(p + Vec2::new(-100., 500.));
-        path_builder.line_to(p + Vec2::new(-100., 0.));
+        path_builder.line_to(p + Vec2::new(40., 0.));
+        path_builder.line_to(p + Vec2::new(40., -6.));
+        path_builder.line_to(p + Vec2::new(0., -6.));
         path_builder.line_to(p + Vec2::new(0., 0.));
         let line = path_builder.build();
         commands.spawn_bundle(GeometryBuilder::build_as(
             &line,
             DrawMode::Outlined {
                 fill_mode: FillMode::color(Color::GREEN),
-                outline_mode: StrokeMode::new(Color::GREEN, 1. * projection.scale),
+                outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
             },
             Transform { translation: Vec3::new(0., 0., UI_ZORDER + 10.), ..Default::default() },
         )).insert( HealthBar );
