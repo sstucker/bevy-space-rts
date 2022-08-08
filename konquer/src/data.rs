@@ -81,14 +81,25 @@ pub struct SpriteData {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ProjectileData {
     pub name: String,
-    pub class: String,
+    pub class: ProjectileClassData,
     pub subclass: String,
     pub velocity: f32,
+    pub damage: f32,
     pub range: f32,
     pub size: Vec<f32>,
     pub sprites: Vec<SpriteData>
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(tag="name")]
+pub enum ProjectileClassData {
+    Ballistic {
+        damage_per_max_hp: f32
+    },
+    PointDefense {
+        damage_per_max_hp: f32
+    }
+}
 
 // Units are created from platforms with loadouts via Assemblies
 

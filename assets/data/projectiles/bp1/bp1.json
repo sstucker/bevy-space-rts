@@ -1,8 +1,12 @@
 {
     "name": "bp1",
-    "class": "ballistic-projectile",
+    "class": {
+        "name": "Ballistic",
+        "damage_per_max_hp": 0.1
+    },
     "subclass": "shell",
-    "velocity": 3.0,
+    "velocity": 2.0,
+    "damage": 2.0,
     "range": 300.0,
     "size": [20.0, 8.0],
     "sprites": [{

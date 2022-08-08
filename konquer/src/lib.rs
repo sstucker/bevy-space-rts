@@ -261,7 +261,8 @@ fn turret_track_and_fire_system(
                             ec.insert(Projectile {
                                 fired_from: fire_from.truncate(),
                                 range: projectile_data.range,
-                                player: parent_unit.player.clone()
+                                player: parent_unit.player.clone(),
+                                damage: projectile_data.damage
                             });
                             ec
                             .insert(Body::new(fire_from, Vec2::new(projectile_data.size[0], projectile_data.size[1])))
@@ -334,7 +335,7 @@ fn turret_track_and_fire_system(
 fn projectile_collision_system(
     mut commands: Commands,
     q_debug: Query<Entity, With<DebugProjectileCollisionCheckLine>>,
-    q_units: Query<(Entity, &Unit, &Body), With<Unit>>,
+    mut q_units: Query<(Entity, &Unit, &mut Hp, &Body), With<Unit>>,
     q_projectiles: Query<(Entity, &Projectile, &Body), With<Projectile>>,
 ) { 
     if DEBUG_GRAPHICS {
@@ -347,7 +348,7 @@ fn projectile_collision_system(
         qtree.insert(EntityBody { entity: entity, position: body.position.truncate(), radius: body.collision_radius })
     }
     let mut colliders: Vec<EntityBody> = Vec::new();
-    for (unit_e, unit, unit_body) in q_units.iter() {
+    for (unit_e, unit, mut unit_hp, unit_body) in q_units.iter_mut() {
         colliders.clear();
         qtree.retrieve(unit_body.position.truncate(), unit_body.collision_radius, &mut colliders);
         for projectile_eb in colliders.iter() {
@@ -356,6 +357,8 @@ fn projectile_collision_system(
                     
                     let distance = unit_body.position.truncate().distance(projectile_body.position.truncate());
                     if distance < (projectile_body.collision_radius + unit_body.collision_radius) {
+                        unit_hp.current = (unit_hp.current as f32 - projectile.damage) as u64;
+                        println!("Unit now has {} hp", unit_hp.current);
                         commands.entity(projectile_e).despawn_recursive();
                     }
                     if DEBUG_GRAPHICS {

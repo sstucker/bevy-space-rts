@@ -37,6 +37,9 @@ pub fn ui_highlight_selected_system(
     }
 }
 
+const HEALTHBAR_HEIGHT: f32 = 6.;
+const HEALTHBAR_WIDTH: f32 = 80.;
+const HEALTHBAR_MARGIN: f32 = 1.;
 
 pub fn ui_show_hp_system(
     mut commands: Commands,
@@ -49,18 +52,43 @@ pub fn ui_show_hp_system(
     }
     let projection = q_camera.single();
     for (unit, hp, body) in q_units.iter() {
+        let hp_color = match unit.player.id {
+            USER_ID => Color::rgba(0.1, 1.0, 0.1, 1.0),
+            _ => Color::rgba(1.0, 0.0, 0.0, 1.0)
+        };
+        let mut rect: Vec<Vec2> = vec!(
+            Vec2::new(HEALTHBAR_WIDTH, 0.),
+            Vec2::new(HEALTHBAR_WIDTH, HEALTHBAR_HEIGHT),
+            Vec2::new(0., HEALTHBAR_HEIGHT),
+            Vec2::new(0., 0.)
+        );
         let mut path_builder = PathBuilder::new();
-        let p = body.position.truncate() - (body.size * 0.8 * SPRITE_SCALE);
+        let p = body.position.truncate() - Vec2::new(HEALTHBAR_WIDTH / 2., body.size.y * 1.2 * SPRITE_SCALE);
         path_builder.move_to(p);
-        path_builder.line_to(p + Vec2::new(40., 0.));
-        path_builder.line_to(p + Vec2::new(40., -6.));
-        path_builder.line_to(p + Vec2::new(0., -6.));
-        path_builder.line_to(p + Vec2::new(0., 0.));
-        let line = path_builder.build();
+        for v in rect.iter() {
+            path_builder.line_to(p + *v);
+        }
+        let outline = path_builder.build();
+        let fill = HEALTHBAR_WIDTH * (hp.current as f32 / hp.max as f32);
+        path_builder = PathBuilder::new();
+        rect[0].x = fill;
+        rect[1].x = fill;
+        for v in rect.iter() {
+            path_builder.line_to(p + *v);
+        }
+        let healthbar = path_builder.build();
         commands.spawn_bundle(GeometryBuilder::build_as(
-            &line,
+            &healthbar,
             DrawMode::Outlined {
-                fill_mode: FillMode::color(Color::GREEN),
+                fill_mode: FillMode::color(Color::rgba(0.4, 0.4, 0.4, 0.5)),
+                outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
+            },
+            Transform { translation: Vec3::new(0., 0., UI_ZORDER + 9.), ..Default::default() },
+        )).insert( HealthBar );
+        commands.spawn_bundle(GeometryBuilder::build_as(
+            &outline,
+            DrawMode::Outlined {
+                fill_mode: FillMode::color(hp_color),
                 outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
             },
             Transform { translation: Vec3::new(0., 0., UI_ZORDER + 10.), ..Default::default() },

@@ -110,7 +110,7 @@ fn camera_move_system(
             } else {
                 log_zoom.exp()
             };
-            println!("Zoom level is {}", projection.scale);
+            // println!("Zoom level is {}", projection.scale);
         }
         // TODO rotation?
     }

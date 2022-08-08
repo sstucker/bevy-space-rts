@@ -71,7 +71,8 @@ pub struct ProjectileSprite;
 pub struct Projectile {
     pub player: Player,
     pub fired_from: Vec2,
-    pub range: f32
+    pub range: f32,
+    pub damage: f32
 }
 
 
