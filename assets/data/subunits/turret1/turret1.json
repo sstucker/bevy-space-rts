@@ -18,7 +18,7 @@
     "hardpoint_size": 2,
     "size": [168.0, 162.0],
     "sprites": [{
-        "texture": "data\\subunits\\turret1\\turret1.png",
+        "texture": "data/subunits/turret1/turret1.png",
         "size": [168.0, 162.0],
         "z_order": 0
     }]

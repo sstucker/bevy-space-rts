@@ -12,17 +12,17 @@
     "hp": 100,
     "sight_radius": 1000.0,
     "teamcolor_sprite": {
-        "texture": "data\\platforms\\ship1\\layer1_teamcolor.png",
+        "texture": "data/platforms/ship1/layer1_teamcolor.png",
         "size": [1392.0, 732.0],
         "z_order": 1
     },
     "sprites": [{
-            "texture": "data\\platforms\\ship1\\layer2.png",
+            "texture": "data/platforms/ship1/layer2.png",
             "size": [1392.0, 732.0],
             "z_order": 2
         },
         {
-            "texture": "data\\platforms\\ship1\\layer3.png",
+            "texture": "data/platforms/ship1/layer3.png",
             "size": [1392.0, 732.0],
             "z_order": 3
         }

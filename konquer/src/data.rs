@@ -118,3 +118,13 @@ impl UnitData {
         }
     }
 }
+
+// -- Texture data ---------------------------
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TextureData {
+    pub tile_size_x: f32,
+    pub tile_size_y: f32,
+    pub columns: usize,
+    pub rows: usize,
+}

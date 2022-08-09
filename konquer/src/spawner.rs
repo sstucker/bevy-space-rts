@@ -31,7 +31,7 @@ impl SpawnUnitEvent {
 pub fn spawn_units_system(
     mut ev_spawn: EventReader<SpawnUnitEvent>,
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    texture_server: Res<TextureServer>,
     unit_data_server: Res<UnitDataCollection>
 ) {
     'events: for ev in ev_spawn.iter() {
@@ -74,12 +74,12 @@ pub fn spawn_units_system(
 
                         // Add sprites
                         for sprite_data in unit_data.platform.sprites.iter() {
-                            parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, 0.))
+                            parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &texture_server, 0.))
                                 .insert(MainSprite);
                         }
                         // Teamcolor sprite
                         parent.spawn_bundle(
-                            sprite_bundle_from_data(&unit_data.platform.teamcolor_sprite, &asset_server, 0.)
+                            sprite_bundle_from_data(&unit_data.platform.teamcolor_sprite, &texture_server, 0.)
                         )
                         .insert(TeamSprite { color: ev.player.teamcolor } );
 
@@ -137,7 +137,7 @@ pub fn spawn_units_system(
                             unit_data.loadout.iter(), 
                             unit_data.platform.hardpoints.iter()
                         ) {
-                            add_subunit(parent, subunit, hardpoint, &asset_server);
+                            add_subunit(parent, subunit, hardpoint, &texture_server);
                         }
                     });   
                 },
@@ -159,7 +159,7 @@ fn add_subunit(
     parent: &mut ChildBuilder,
     subunit_data: &SubunitData,
     hardpoint_data: &HardpointData,
-    asset_server: &Res<AssetServer>
+    texture_server: &Res<TextureServer>
 ) {
     let subunit_size = Vec2::new(subunit_data.size[0], subunit_data.size[1]);
     let subunit_pos = Vec3::new(hardpoint_data.position[0], hardpoint_data.position[1], hardpoint_data.position[2]);
@@ -168,7 +168,7 @@ fn add_subunit(
         let sprite_z = sprite_data.z_order + hardpoint_data.z_order;
         let sprite_size = Vec2::new(sprite_data.size[0], sprite_data.size[1]);
         ec.insert_bundle(SpriteBundle {
-            texture: asset_server.load(&sprite_data.texture),
+            texture: texture_server.get(&sprite_data.texture).typed::<Image>(),
             sprite: Sprite {
                 custom_size: Some(sprite_size * SPRITE_SCALE),
                 ..Default::default()
@@ -176,7 +176,7 @@ fn add_subunit(
             transform: Transform {
                 translation: Vec3::new(subunit_pos.x * SPRITE_SCALE, subunit_pos.y * SPRITE_SCALE, sprite_z),
                 rotation: Quat::from_rotation_z( subunit_pos.z ),
-                 ..Default::default()
+                    ..Default::default()
                 },
             ..Default::default()
         });
@@ -218,11 +218,11 @@ fn add_subunit(
     }
 }
 
-pub fn sprite_bundle_from_data(sprite_data: &SpriteData, asset_server: &Res<AssetServer>, z_order: f32) -> SpriteBundle {
+pub fn sprite_bundle_from_data(sprite_data: &SpriteData, texture_server: &Res<TextureServer>, z_order: f32) -> SpriteBundle {
     let sprite_z = sprite_data.z_order + z_order;
     let sprite_size = Vec2::new(sprite_data.size[0], sprite_data.size[1]);
     SpriteBundle {
-        texture: asset_server.load(&sprite_data.texture),
+        texture: texture_server.get(&sprite_data.texture).typed::<Image>(),
         sprite: Sprite {
             custom_size: Some(sprite_size * SPRITE_SCALE),
             ..Default::default()

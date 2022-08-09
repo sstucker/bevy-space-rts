@@ -1,7 +1,6 @@
 {
     "name": "thruster1",
-    "class":
-    {
+    "class": {
         "name": "Thruster",
         "forward_thrust": 1.0
     },
@@ -9,7 +8,7 @@
     "hardpoint_size": 1,
     "size": [102.0, 100.0],
     "sprites": [{
-        "texture": "data\\subunits\\thruster1\\thruster1.png",
+        "texture": "data/subunits/thruster1/thruster1.png",
         "size": [102.0, 100.0],
         "z_order": 0
     }]

@@ -100,6 +100,30 @@ impl ProjectileRegistry {
     }
 }
 
+pub struct TextureServer {
+    collection: std::collections::HashMap<String, HandleUntyped>
+}
+
+impl TextureServer {
+    pub fn new() -> Self {
+        Self { collection: std::collections::HashMap::new() }
+    }
+    pub fn insert(&mut self, name: String, element: HandleUntyped) {
+        self.collection.insert(name, element);
+    }
+    pub fn get(&self, key: &String) -> HandleUntyped {
+        if let Some(h) = self.collection.get(key) {
+            return h.clone()
+        }
+        else {
+            panic!("{} is not a valid texture.", key);
+        }
+    }
+    pub fn keys(&self) -> std::collections::hash_map::Keys<'_, std::string::String, bevy::prelude::HandleUntyped> {
+        self.collection.keys()
+    }
+}
+
 impl Plugin for AssetLoaderPlugin {
     fn build(&self, app: &mut App) {
         app
@@ -108,10 +132,12 @@ impl Plugin for AssetLoaderPlugin {
             .insert_resource( PlatformRegistry::new() )
             .insert_resource( ProjectileRegistry::new() )
             .insert_resource( UnitDataCollection::new() )
-            .add_startup_system(load_assemblies_system)
-            .add_startup_system(load_subunits_system.after(load_assemblies_system))
+            .insert_resource( TextureServer::new() )
+            .add_startup_system(load_textures_system)
+            .add_startup_system(load_subunits_system.after(load_textures_system))
             .add_startup_system(load_projectiles_system.after(load_subunits_system))
-            .add_startup_system(load_platforms_system.after(load_subunits_system))
+            .add_startup_system(load_assemblies_system.after(load_projectiles_system))
+            .add_startup_system(load_platforms_system.after(load_assemblies_system))
             .add_startup_system(create_unit_data_system.after(load_platforms_system));
             // .add_startup_system(load_platforms_system);
             // .add_system_set(SystemSet::new() // Input 
@@ -127,6 +153,45 @@ const SUBUNIT_DIR: &str = "assets/data/subunits";
 const PLATFORM_DIR: &str = "assets/data/platforms";
 const PROJECTILE_DIR: &str = "assets/data/projectiles";
 
+fn load_textures_system(
+    mut texture_server: ResMut<TextureServer>,
+    mut atlas: ResMut<Assets<TextureAtlas>>,
+    asset_server: Res<AssetServer>,
+) {
+    'texture: for entry in glob::glob(&("**/*.png")).expect("Fatal: Invalid pattern") {
+        match entry {
+            Ok(path) => {
+                if let Some(s) = path.to_str() {
+                    let path_s = String::from(s).replace("\"", "");
+                    let asset_path_s = path_s.replace("assets\\", "").replace("\\", "/");
+                    println!("Loading texture from {}...", asset_path_s);
+                    let texture_handle = asset_server.load(&asset_path_s);
+                    // Check for JSON file describing the texture
+                    let path_s_json = path_s.replace(".png", ".json");
+                    if let Ok(json_s) = std::fs::read_to_string(&path_s_json) {
+                        println!("   Loading texture data from {}", &path_s_json);
+                        if let Ok(texture_data) = serde_json::from_str::<TextureData>(&json_s) {
+                            let texture_atlas = TextureAtlas::from_grid(
+                                texture_handle,
+                                Vec2::new(texture_data.tile_size_x, texture_data.tile_size_y),
+                                texture_data.columns,
+                                texture_data.rows
+                            );
+                            texture_server.insert(asset_path_s.clone(), atlas.add(texture_atlas).clone_untyped());
+                            continue 'texture   
+                        }
+                    }
+                    texture_server.insert(asset_path_s.clone(), texture_handle.clone_untyped());
+                }
+                else {
+                    eprintln!("Invalid texture path {:?}", path);
+                }
+            },
+            Err(e) => eprintln!("{:?}", e)
+        }
+    }
+}
+
 fn load_assemblies_system(
     mut registry: ResMut<AssemblyRegistry>,
 ) {
@@ -136,9 +201,13 @@ fn load_assemblies_system(
         if let Ok(path) = path {
             println!("    Found assembly {}.", path.path().display());
             if let Ok(s) = std::fs::read_to_string(path.path()) {
-                let assembly: AssemblyData = serde_json::from_str(s.as_str()).unwrap();
-                println!("       {:?}", assembly);
-                registry.push(assembly);
+                match serde_json::from_str::<AssemblyData>(s.as_str()) {
+                    Ok(assembly) => {
+                        println!("       {:?}", assembly);
+                        registry.push(assembly);
+                    },
+                    Err(e) => { eprintln!("Failed to parse {:?}, {:?}", s.as_str(), e) }
+                }
             }
             else {
                 println!("      Failed to load the data!");
@@ -154,12 +223,13 @@ fn load_projectiles_system(
         match entry {
             Ok(path) => {
                 if let Ok(s) = std::fs::read_to_string(&path) {
-                    let data: ProjectileData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
-                        panic!("Could not deserialize projectile {}: {:?}", path.display(), err);
-                    });
-                    let projectile_name = String::from(&data.name);
-                    println!("       Imported Projectile {:?}", projectile_name);
-                    registry.insert(projectile_name, data);
+                    match serde_json::from_str::<ProjectileData>(s.as_str()) {
+                        Ok(data) => {
+                            println!("       {:?}", data.name);
+                            registry.insert(data.name.clone(), data);
+                        },
+                        Err(e) => { eprintln!("Failed to parse {:?}, {:?}", s.as_str(), e) }
+                    }
                 }
             }  
             Err(e) => eprintln!("{:?}", e),
@@ -174,11 +244,13 @@ fn load_subunits_system(
         match entry {
             Ok(path) => {
                 if let Ok(s) = std::fs::read_to_string(&path) {
-                    let data: SubunitData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
-                        panic!("Could not deserialize subunit {}: {:?}", path.display(), err);
-                    });
-                    println!("       Imported Subunit {:?}", data.name);
-                    registry.insert(data.name.replace("\"", ""), data);
+                    match serde_json::from_str::<SubunitData>(s.as_str()) {
+                        Ok(data) => {
+                            println!("       {:?}", data.name);
+                            registry.insert(data.name.clone(), data);
+                        },
+                        Err(e) => { eprintln!("Failed to parse {:?}, {:?}", s.as_str(), e) }
+                    }
                 }  
             },
             Err(e) => eprintln!("{:?}", e),
@@ -193,11 +265,13 @@ fn load_platforms_system(
         match entry {
             Ok(path) => {
                 if let Ok(s) = std::fs::read_to_string(&path) {
-                    let data: PlatformData = serde_json::from_str(s.as_str()).unwrap_or_else(|err| {
-                        panic!("Could not deserialize platform {}: {:?}", path.display(), err);
-                    });
-                    println!("       Imported Platform {:?}", data.name);
-                    registry.insert(data.name.replace("\"", ""), data);
+                    match serde_json::from_str::<PlatformData>(s.as_str()) {
+                        Ok(data) => {
+                            println!("       {:?}", data.name);
+                            registry.insert(data.name.clone(), data);
+                        },
+                        Err(e) => { eprintln!("Failed to parse {:?}, {:?}", s.as_str(), e) }
+                    }
                 }  
             },
             Err(e) => eprintln!("{:?}", e), 

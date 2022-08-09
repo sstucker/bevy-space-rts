@@ -55,22 +55,6 @@ const USER_ID: u8 = 0;
 
 type WindowSize = Vec2;
 
-pub struct TextureServer {
-    collection: std::collections::HashMap<String, Handle<TextureAtlas>>
-}
-
-impl TextureServer {
-    pub fn new() -> Self {
-        Self { collection: std::collections::HashMap::new() }
-    }
-    pub fn insert(&mut self, name: String, element: Handle<TextureAtlas>) {
-        self.collection.insert(name, element);
-    }
-    pub fn get(&self, key: &String) -> Option<&Handle<TextureAtlas>> {
-        self.collection.get(key)
-    }
-}
-
 pub struct UnitPlugin;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -92,7 +76,6 @@ impl Plugin for UnitPlugin {
         //     .add_system(player_fire_system);
         app
             .insert_resource(Msaa { samples: 4 })
-            .insert_resource( TextureServer::new() )
             .add_plugin(ShapePlugin)
             .add_plugin(InputPlugin)
             .add_plugin(AssetLoaderPlugin)
@@ -147,13 +130,11 @@ impl Player {
 fn startup_system(
     mut commands: Commands,
     windows: Res<Windows>,
-    mut texture_server: ResMut<TextureServer>,
     asset_server: Res<AssetServer>,
 ) {
     let window = windows.get_primary().unwrap();
     let window_size = WindowSize::new(window.width(), window.height());
 	commands.insert_resource(window_size);
-    texture_server.insert(String::from("data\\fx\\explo_a_sheet.png"), asset_server.load("data\\fx\\explo_a_sheet.png"));
 }
 
 // TODO add these as parameters for various units
@@ -211,7 +192,7 @@ fn turret_track_and_fire_system(
     mut commands: Commands,
     mut q_turret: Query<(&mut Turret, &Parent, &Subunit, &mut Velocity, &Body), With<Turret>>,
     projectiles: Res<ProjectileRegistry>,
-    asset_server: Res<AssetServer>,
+    texture_server: Res<TextureServer>,
     q_body: Query<&Body>,
     q_unit: Query<&Unit>,
     mut q_targets: Query<&mut Targets>,
@@ -278,7 +259,7 @@ fn turret_track_and_fire_system(
                             })
                             .with_children(|parent| {
                                 for sprite_data in projectile_data.sprites.iter() {
-                                    parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &asset_server, PROJECTILE_ZORDER)).insert(ProjectileSprite);
+                                    parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &texture_server, PROJECTILE_ZORDER)).insert(ProjectileSprite);
                                 }
                             });
                         };
@@ -337,23 +318,21 @@ fn explosion_to_spawn_system(
 ) {
 	for (explosion_spawn_entity, explosion_to_spawn) in query.iter() {
 		// spawn the explosion sprite
-		if let Some(texture) = texture_server.get(&String::from("data\\fx\\explo_a_sheet.png")) {
-            commands
-                .spawn_bundle(SpriteSheetBundle {
-                    texture_atlas: texture.clone(),
-                    transform: Transform {
-                        translation: explosion_to_spawn.0,
-                        ..Default::default()
-                    },
+        commands
+            .spawn_bundle(SpriteSheetBundle {
+                texture_atlas: texture_server.get(&String::from("data/fx/explo_a_sheet.png")).typed::<TextureAtlas>(),
+                transform: Transform {
+                    translation: explosion_to_spawn.0,
                     ..Default::default()
-                })
-                .insert(Explosion)
-                .insert(ExplosionTimer::default());
-    
-            // despawn the explosionToSpawn
-            commands.entity(explosion_spawn_entity).despawn();
-        }
-	}
+                },
+                ..Default::default()
+            })
+            .insert(Explosion)
+            .insert(ExplosionTimer::default());
+
+        // despawn the explosionToSpawn
+        commands.entity(explosion_spawn_entity).despawn();
+    }
 }
 
 fn explosion_animation_system(
@@ -362,7 +341,6 @@ fn explosion_animation_system(
 	mut query: Query<(Entity, &mut ExplosionTimer, &mut TextureAtlasSprite), With<Explosion>>,
 ) {
 	for (entity, mut timer, mut sprite) in query.iter_mut() {
-		println!("Timer tickin");
         timer.0.tick(time.delta());
 		if timer.0.finished() {
 			sprite.index += 1; // move to next sprite cell

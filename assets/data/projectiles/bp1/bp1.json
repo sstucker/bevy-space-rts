@@ -10,7 +10,7 @@
     "range": 300.0,
     "size": [20.0, 8.0],
     "sprites": [{
-        "texture": "data\\projectiles\\bp1\\bp1.png",
+        "texture": "data/projectiles/bp1/bp1.png",
         "size": [20.0, 8.0],
         "z_order": 0
     }]
