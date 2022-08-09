@@ -1,3 +1,23 @@
+# Unit Behavior
+
+## Capitals
+
+### Objective
+
+Units can have one of the following movement objectives, in order of priority:
+- Follow a path
+    - Move to a point or a collection of points
+    - Assigning a path clears the Priority Target List
+- Follow unit
+    - Target (Pursue top of Priority Target List: Move to within range of enemy)
+    - Guard (Follow on Friendly: track a unit closely)
+    * Advanced UI: choose Follow distance (versus weapon range)
+
+Action objectives
+
+### Control
+
+
 # Weapon system
 
 ## Weapon types
@@ -22,3 +42,12 @@
 ## Other
 - PDL (Point defense lasers)
     - Shoot down missiles and ballistic cannons
+
+
+# Subunits
+
+- Turrets
+- Foward weapons
+- Shield generator
+- Thruster
+- Compartment

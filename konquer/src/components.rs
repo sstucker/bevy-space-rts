@@ -234,15 +234,46 @@ Targeterable means can be given targets via manual UI modification, not by paren
 #[derive(Component)]
 pub struct Targeterable;
 
+
+// Targets is a deque of Entity instances that is cycled through by each unit
 #[derive(Component)]
 pub struct Targets {
     // pub deque: VecDeque<KindedEntity<Unit>>  // Deque of targets
-    pub deque: VecDeque<Entity>  // TODO figure out how to get KindedEntity pattern to work
+    deque: VecDeque<Entity>  // TODO figure out how to get KindedEntity pattern to work
 }
 
 impl Targets {
     pub fn new() -> Targets {
         Targets { deque: VecDeque::new() }
+    }
+    pub fn clear(&mut self) {
+        self.deque.clear();
+    }
+    pub fn get_target(&mut self) -> Option<Entity> {
+        if self.deque.len() > 0 {
+            return Some(self.deque[0].clone())
+        }
+        return None
+    }
+    pub fn move_to_next(&mut self) {
+        if self.deque.len() > 0 {
+            self.deque.pop_front();
+        }
+    }
+    pub fn get_all(&self) -> VecDeque<Entity> {
+        self.deque.clone()
+    }
+    pub fn len(&self) -> usize {
+        self.deque.len()
+    }
+    pub fn add_target(&mut self, new_target: Entity) {
+        for current_target in self.deque.iter() {
+            if current_target.id() == new_target.id() {
+                // Cannot add repeats to the target collection
+                return
+            }
+        }
+        self.deque.push_back(new_target);
     }
 }
 
@@ -252,14 +283,12 @@ pub struct Range {
     pub fire: f32  // Range at which the unit can fire
 }
 
-
 static NUMBER_OF_UNITS: AtomicU8 = AtomicU8::new(0);
-
 
 #[derive(Component)]
 pub struct Unit {
     pub name: String,  // The human-readable name of the unit
-    pub player: Player,  // The player of the unit
+    pub player: Player,  // The player of the unit TOO pass around references
     pub id: u8,  // The global identifying number of the unit
 }
 

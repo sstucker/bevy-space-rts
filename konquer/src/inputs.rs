@@ -221,15 +221,8 @@ pub fn decode_action_system(
                 if (click_point - body.position.truncate()).length() < body.selection_radius {  // TODO movable per Player?
                     // Send Add Target Event and return. This needs to run on server
                     'targets: for mut selected_unit_targets in q_targeterable.iter_mut() {
-                        // TODO interface?
-                        for target in selected_unit_targets.deque.iter() {
-                            if target.id() == entity.id() {
-                                // Don't add a duplicate target
-                                continue 'targets;
-                        };
-                        }
                         println!("Added {} to targets", entity.id());
-                        selected_unit_targets.deque.push_back(entity);  
+                        selected_unit_targets.add_target(entity);  
                     }
                     return;
                 }

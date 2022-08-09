@@ -108,7 +108,6 @@ impl Plugin for UnitPlugin {
                 .with_system(capital_ship_repulsion_system)
                 .with_system(capital_ship_destruction_system)
                 .with_system(projectile_collision_system)
-                .with_system(turret_target_dispatcher)
                 .with_system(unit_pathing_system)
             )
             .add_system_set(SystemSet::new() // Input 
@@ -205,42 +204,17 @@ fn unit_pathing_system(
 
 }
 
-// Passes targets to subunits
-fn turret_target_dispatcher(
-    q_targeters: Query<(Entity, &Children, &Targets), (With<Targets>, Without<Subunit>)>,
-    mut q_targets: Query<&mut Targets, With<Subunit>>
-) {
-    for (parent_entity, children, parent_targets) in q_targeters.iter() {
-        for child in children.iter() {
-            if let Ok(mut child_targets) = q_targets.get_mut(*child) {
-                // child_targets.deque.clear();
-                // TODO child target clearing
-                // TODO prioritization based on distance
-                'targets: for parent_target in parent_targets.deque.iter() {
-                    for child_target in child_targets.deque.iter() {
-                        if child_target.id() == parent_target.id() {
-                            // Don't add a duplicate target
-                            continue 'targets;
-                        }
-                    }
-                    child_targets.deque.push_back(*parent_target);
-                }
-            }
-        }
-    }
-}
-
-
 const TURRET_ON_TARGET_THRESH: f32 = 0.001;  // radians
 const TURRET_FIRE_THRESH: f32 = 10. * PI / 180.;  // radians
 
 fn turret_track_and_fire_system(
     mut commands: Commands,
-    mut q_turret: Query<(&mut Turret, &Parent, &Targets, &Subunit, &mut Velocity, &Body), With<Turret>>,
+    mut q_turret: Query<(&mut Turret, &Parent, &Subunit, &mut Velocity, &Body), With<Turret>>,
     projectiles: Res<ProjectileRegistry>,
     asset_server: Res<AssetServer>,
     q_body: Query<&Body>,
     q_unit: Query<&Unit>,
+    mut q_targets: Query<&mut Targets>,
     q_velocity: Query<&Velocity, Without<Subunit>>,
     q_debug_graphics: Query<Entity, With<DebugTurretTargetLine>>,
     time: Res<Time>,
@@ -250,19 +224,19 @@ fn turret_track_and_fire_system(
             commands.entity(line).despawn();
         }
     }
-    for (mut turret, turret_parent, targets, subunit, mut turret_velocity, turret_body) in q_turret.iter_mut() {
+    for (mut turret, turret_parent, subunit, mut turret_velocity, turret_body) in q_turret.iter_mut() {
         let parent_unit: &Unit = q_unit.get(turret_parent.0).unwrap();
+        let mut targets = q_targets.get_mut(turret_parent.0).unwrap();
         let parent_velocity: &Velocity = q_velocity.get(turret_parent.0).unwrap();
         let turret_parent_body = q_body.get(turret_parent.0).unwrap();
-        for target_entity in targets.deque.iter() {
-            if let Ok(target_body) = q_body.get(*target_entity) {
+        if let Some(target_entity) = targets.get_target() {
+            if let Ok(target_body) = q_body.get(target_entity) {
                 let heading = Vec2::new(f32::cos(turret_body.position.z + turret_parent_body.position.z), f32::sin(turret_body.position.z + turret_parent_body.position.z));
                 let abs_turret_pos = get_absolute_position(turret_body.position, turret_parent_body.position);
                 let dist_to_dest = (target_body.position.truncate() - abs_turret_pos.truncate()).length();
                 let target = (target_body.position.truncate() - abs_turret_pos.truncate()).normalize();
                 let cross = target.x * heading.y - target.y * heading.x;
                 let err = 1. - heading.dot(target);
-                
                 if cross.abs() > TURRET_ON_TARGET_THRESH {
                     turret_velocity.dw = 
                     if cross > 0.0 {
@@ -273,7 +247,6 @@ fn turret_track_and_fire_system(
                         0.
                     };  
                 }
-
                 turret.tick(time.delta());
                 if cross.abs() < TURRET_FIRE_THRESH && turret.ready() {
                     // Fire!
@@ -347,8 +320,12 @@ fn turret_track_and_fire_system(
                 }
             }
             else {
-                println!("Could not get target body")
+                targets.move_to_next();
+                println!("Could not get target body. The target has likely been despawned. There are {} targets", targets.len());
             }
+        }
+        else {
+            // println!("There were no targets.");
         }
     }
 }
@@ -385,7 +362,7 @@ fn explosion_animation_system(
 	mut query: Query<(Entity, &mut ExplosionTimer, &mut TextureAtlasSprite), With<Explosion>>,
 ) {
 	for (entity, mut timer, mut sprite) in query.iter_mut() {
-		// println!("Timer tickin");
+		println!("Timer tickin");
         timer.0.tick(time.delta());
 		if timer.0.finished() {
 			sprite.index += 1; // move to next sprite cell

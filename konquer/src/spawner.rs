@@ -203,11 +203,11 @@ fn add_subunit(
                 vsources
             ))
             .insert(Velocity { ..Default::default() })
+            // .insert(Targets::new());  Not sure if turrets need their own target deque
             .insert(Range {
                 sight: fire_range,
                 fire: fire_range
-            })
-            .insert(Targets::new());
+            });
         },
         SubunitClassData::Thruster { forward_thrust } => {
             ec.insert(Thruster {
