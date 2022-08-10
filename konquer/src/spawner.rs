@@ -198,16 +198,17 @@ fn add_subunit(
             ec.insert(Turret::new(
                 String::from(&subunit_data.name),
                 String::from(projectile),
+                fire_range,
                 reload_time,
                 firing_pattern,
                 vsources
             ))
-            .insert(Velocity { ..Default::default() })
+            .insert(Velocity { ..Default::default() });
             // .insert(Targets::new());  Not sure if turrets need their own target deque
-            .insert(Range {
-                sight: fire_range,
-                fire: fire_range
-            });
+            // .insert(Range {
+            //     sight: fire_range,
+            //     fire: fire_range
+            // });
         },
         SubunitClassData::Thruster { forward_thrust } => {
             ec.insert(Thruster {

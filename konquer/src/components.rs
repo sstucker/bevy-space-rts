@@ -80,6 +80,7 @@ pub struct Projectile {
 pub struct Turret {
     pub name: String,
     pub projectile: String,
+    pub range: f32,
     pub reload_time: u64,
     pub timer: Timer,
     pub firing_pattern: String,
@@ -88,11 +89,12 @@ pub struct Turret {
 }
 
 impl Turret {
-    pub fn new(name: String, projectile: String, reload_time: u64, firing_pattern: String, sources: Vec<Vec2>) -> Self {
+    pub fn new(name: String, projectile: String, range: f32, reload_time: u64, firing_pattern: String, sources: Vec<Vec2>) -> Self {
         Self {
             name,
             projectile,
             reload_time,
+            range,
             timer: Timer::new(Duration::from_millis(reload_time), false),
             firing_pattern,
             sources,

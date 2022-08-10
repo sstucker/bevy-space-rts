@@ -37,8 +37,8 @@ pub fn ui_highlight_selected_system(
     }
 }
 
-const HEALTHBAR_HEIGHT: f32 = 6.;
-const HEALTHBAR_WIDTH: f32 = 80.;
+const HEALTHBAR_HEIGHT: f32 = 1.;
+const HEALTHBAR_WIDTH: f32 = 20.;
 const HEALTHBAR_MARGIN: f32 = 1.;
 
 pub fn ui_show_hp_system(

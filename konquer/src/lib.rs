@@ -49,7 +49,7 @@ const WORLD_ZORDER: f32 = 0.;
 const MAP_W: i32 = 500;
 const MAP_H: i32 = 500;
 
-const SPRITE_SCALE: f32 = 0.05;
+const SPRITE_SCALE: f32 = 0.01;
 
 const USER_ID: u8 = 0;
 
@@ -157,9 +157,9 @@ fn unit_pathing_system(
             let err = 1. - heading.dot(target);
             velocity.dw += 
             if cross > 0.0 {
-                -0.001 * err.sqrt().min(1.).max(0.1)
+                -0.0006 * err.sqrt().min(1.).max(0.1)
             } else if cross < 0.0 {
-                0.001 * err.sqrt().min(1.).max(0.1)
+                0.0006 * err.sqrt().min(1.).max(0.1)
             } else {
                 0.
             };
@@ -167,11 +167,11 @@ fn unit_pathing_system(
             if cross.abs() < HEADING_THRESH_BURN {  // If we are close enough to the right heading to use rear thrusters
                 // TODO get values from thrusters
                 // Rear thrusters
-                velocity.dx += (heading.x * 0.006) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
-                velocity.dy += (heading.y * 0.006) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
+                velocity.dx += (heading.x * 0.004) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
+                velocity.dy += (heading.y * 0.004) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
                 // omni thrusters
-                velocity.dx += target.x * 0.01 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
-                velocity.dy += target.y * 0.01 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
+                velocity.dx += target.x * 0.003 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
+                velocity.dy += target.y * 0.003 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
 
             }
 
@@ -214,7 +214,7 @@ fn turret_track_and_fire_system(
             if let Ok(target_body) = q_body.get(target_entity) {
                 let heading = Vec2::new(f32::cos(turret_body.position.z + turret_parent_body.position.z), f32::sin(turret_body.position.z + turret_parent_body.position.z));
                 let abs_turret_pos = get_absolute_position(turret_body.position, turret_parent_body.position);
-                let dist_to_dest = (target_body.position.truncate() - abs_turret_pos.truncate()).length();
+                let distance_to_target = (target_body.position.truncate() - abs_turret_pos.truncate()).length();
                 let target = (target_body.position.truncate() - abs_turret_pos.truncate()).normalize();
                 let cross = target.x * heading.y - target.y * heading.x;
                 let err = 1. - heading.dot(target);
@@ -229,7 +229,7 @@ fn turret_track_and_fire_system(
                     };  
                 }
                 turret.tick(time.delta());
-                if cross.abs() < TURRET_FIRE_THRESH && turret.ready() {
+                if cross.abs() < TURRET_FIRE_THRESH && turret.ready() && distance_to_target < turret.range {
                     // Fire!
                     if let Some(projectile_data) = projectiles.get(&turret.projectile) {
                         let mut fire_projectile = |fire_from: Vec3| {
@@ -439,12 +439,13 @@ fn capital_ship_repulsion_system(
                 if distance < (e.radius + body.repulsion_radius) {
                     let heading = (body.position.truncate() - e.position).normalize();
                     if let Ok(mut v1) = q_velocity.get_mut(e.entity) {
-                        v1.dx -= heading.x * 1. / (distance * 4.);
-                        v1.dy -= heading.y * 1. / (distance * 4.);
+                        v1.dx -= 0.1 * heading.x * 1. / (distance * 4.);
+                        v1.dy -= 0.1 * heading.y * 1. / (distance * 4.);
                     }
                     if let Ok(mut v2) = q_velocity.get_mut(entity) {
-                        v2.dx += heading.x * 1. / (distance * 4.);
-                        v2.dy += heading.y * 1. / (distance * 4.);      
+                        v2.dx += 0.1 * heading.x * 1. / (distance * 4.);
+                        v2.dy += 0.1 * heading.y * 1. / (distance * 4.);      
+                        v2.dy += 0.1 * heading.y * 1. / (distance * 4.);      
                     }
                 } 
                 if DEBUG_GRAPHICS {

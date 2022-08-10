@@ -1,0 +1,85 @@
+{
+    "name": "ship2",
+    "class": {
+        "name": "Capital",
+        "range_radius": 500.0,
+        "forward_burn_threshold": 7.0,
+        "lateral_drag": 0.96,
+        "radial_drag": 0.5
+    },
+    "subclass": "frigate",
+    "size": [3156.0, 1410.0],
+    "hp": 100,
+    "sight_radius": 1000.0,
+    "teamcolor_sprite": {
+        "texture": "data/platforms/ship2/layer1_teamcolor.png",
+        "size": [3156.0, 1410.0],
+        "z_order": 1
+    },
+    "sprites": [{
+        "texture": "data/platforms/ship2/layer2.png",
+        "size": [3156.0, 1410.0],
+        "z_order": 2
+    }],
+    "hardpoints": [{
+            "class_name": "turret",
+            "hardpoint_size": 1,
+            "z_order": 3,
+            "position": [-420.0, 0.0, 0.0]
+        },
+        {
+            "class_name": "turret",
+            "hardpoint_size": 1,
+            "z_order": 3,
+            "position": [-920.0, 0.0, 0.0]
+        },
+        {
+            "class_name": "turret",
+            "hardpoint_size": 1,
+            "z_order": 3,
+            "position": [480.0, 220.0, 0.0]
+        },
+        {
+            "class_name": "turret",
+            "hardpoint_size": 1,
+            "z_order": 3,
+            "position": [860.0, 220.0, 0.0]
+        },
+        {
+            "class_name": "turret",
+            "hardpoint_size": 1,
+            "z_order": 3,
+            "position": [480.0, -220.0, 0.0]
+        },
+        {
+            "class_name": "turret",
+            "hardpoint_size": 1,
+            "z_order": 3,
+            "position": [860.0, -220.0, 0.0]
+        },
+        {
+            "class_name": "turret",
+            "hardpoint_size": 2,
+            "z_order": 3,
+            "position": [90.0, 320.0, 0.0]
+        },
+        {
+            "class_name": "turret",
+            "hardpoint_size": 2,
+            "z_order": 3,
+            "position": [90.0, -320.0, 0.0]
+        },
+        {
+            "class_name": "thruster",
+            "hardpoint_size": 3,
+            "z_order": 0,
+            "position": [-1400.0, 320.0, 0.0]
+        },
+        {
+            "class_name": "thruster",
+            "hardpoint_size": 3,
+            "z_order": 0,
+            "position": [-1400.0, -320.0, 0.0]
+        }
+    ]
+}

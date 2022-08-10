@@ -4,8 +4,8 @@ use crate::Map;
 
 // TODO parameters
 const CAMERA_DRAG: f32 = 0.93;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
-const MIN_ZOOM_SCALE: f32 = 0.1;
-const MAX_ZOOM_SCALE: f32 = 6.;
+const MIN_ZOOM_SCALE: f32 = 0.04;
+const MAX_ZOOM_SCALE: f32 = 8.;
 
 pub struct KinematicCameraPlugin;
 

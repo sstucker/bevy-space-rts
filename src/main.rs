@@ -49,6 +49,10 @@ fn test_system(
 	));
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
+		"Cruiser1".to_string(), player1.clone(), Vec3::new(300., 300., 0.)
+	));
+
+	test_spawner.send(konquer::SpawnUnitEvent::new(
 		"Frigate1".to_string(), player2.clone(), Vec3::new(150., 150., 0.)
 	));
 }

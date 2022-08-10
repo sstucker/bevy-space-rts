@@ -6,7 +6,7 @@
     },
     "subclass": "shell",
     "velocity": 1.0,
-    "damage": 6.0,
+    "damage": 1.0,
     "range": 300.0,
     "size": [20.0, 8.0],
     "sprites": [{

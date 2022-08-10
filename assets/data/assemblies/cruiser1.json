@@ -1,0 +1,16 @@
+{
+    "name": "Cruiser1",
+    "platform": "ship2",
+    "loadout": [
+        "pdc1",
+        "pdc1",
+        "pdc1",
+        "pdc1",
+        "pdc1",
+        "pdc1",
+        "turret1",
+        "turret1",
+        "thruster2",
+        "thruster2"
+    ]
+}
