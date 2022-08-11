@@ -1,9 +1,16 @@
 use std::f32::consts::E;
 
 use bevy_prototype_lyon::prelude::*;
-use bevy::{prelude::*, ecs::query};
+use bevy::{prelude::*, ecs::query, input::mouse::MouseMotion, text::FontLoader};
 
-use crate::*;
+use crate::{*, inputs::MouseOverEvent};
+
+pub fn ui_setup_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>
+) {
+    
+}
 
 pub fn ui_highlight_selected_system(
     mut commands: Commands,
@@ -123,6 +130,66 @@ pub fn ui_show_path_system(
                 )),
                 Transform { translation: Vec3::new(0., 0., 5.), ..Default::default() },
             )).insert( UnitPathDisplay );
+        }
+    }
+}
+pub fn ui_planet_system(
+    mut commands: Commands,
+    windows: Res<Windows>,
+    q_ui: Query<Entity, With<PlanetUI>>, 
+    q_planets: Query<(&Planet, &Orbit, &Transform), With<Planet>>, 
+    q_camera: Query<&OrthographicProjection, With<Camera>>,
+    mut mouseover_ev: EventReader<MouseOverEvent>,
+    asset_server: Res<AssetServer>,
+    q_map: Query<&Map>
+) {
+    for entity in q_ui.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+    let scale_factor = q_camera.single().scale;
+    for event in mouseover_ev.iter() {
+        for (planet, orbit, planet_transform) in q_planets.iter() {
+            if event.pos.distance(planet_transform.translation.truncate()) < planet.radius + planet.radius * scale_factor.max(8.).min(1.) {
+                let window = windows.get_primary().unwrap();
+                println!("Scale factor is {}", scale_factor);
+                let map = q_map.get_single().unwrap();
+                let ui_pos = planet_transform.translation.truncate() + Vec2::new(70.0, 50.0) * scale_factor;
+                let text_style = TextStyle {
+                    font: asset_server.load("fonts/Oxanium-Medium.ttf"),
+                    font_size: 30.0 * scale_factor,
+                    color: Color::WHITE,
+                };
+                // Display planet's orbit
+                commands.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                    sides: 60,
+                    feature: shapes::RegularPolygonFeature::Radius(orbit.radius),
+                    ..shapes::RegularPolygon::default()
+                    },
+                    DrawMode::Outlined {
+                        fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
+                        outline_mode: StrokeMode::new(Color::rgba(0.1, 1., 1., 1.), 4. * scale_factor),
+                    },
+                    Transform { translation: Vec3::new(map.w as f32 / 2., map.h as f32 / 2., WORLD_ZORDER + 1.), ..Default::default() },
+                )).insert(PlanetUI);
+
+                // Display planet's name and information
+                commands.spawn().insert(PlanetUI)
+                .insert_bundle(SpatialBundle {
+                    transform: Transform {
+                        translation: Vec3::new(ui_pos.x, ui_pos.y, PLANET_ZORDER + 1.),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn_bundle(Text2dBundle {
+                        text: Text::from_section(&planet.name.to_uppercase(), text_style.clone())
+                            .with_alignment(TextAlignment::CENTER),
+                        ..default()
+                    });
+                });
+                return
+            }
         }
     }
 }

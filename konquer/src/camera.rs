@@ -5,7 +5,7 @@ use crate::Map;
 // TODO parameters
 const CAMERA_DRAG: f32 = 0.93;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
 const MIN_ZOOM_SCALE: f32 = 0.04;
-const MAX_ZOOM_SCALE: f32 = 8.;
+const MAX_ZOOM_SCALE: f32 = 20.;
 
 pub struct KinematicCameraPlugin;
 
@@ -40,7 +40,7 @@ impl Plugin for KinematicCameraPlugin {
 fn camera_startup_system(
     mut commands: Commands,
 ) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d())
+    commands.spawn_bundle(Camera2dBundle::default())
 		.insert(OrthographicVelocity { ..Default::default() });
 }
 

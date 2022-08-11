@@ -2,7 +2,7 @@ use std::f32::consts::E;
 
 use std::fs;
 use bevy::{prelude::*, input::mouse::{MouseMotion, MouseButtonInput}, ecs::query};
-use bevy::core::FixedTimestep;
+use bevy::time::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 // use leafwing_input_manager::prelude::*;
 
@@ -12,6 +12,10 @@ const SELECT_RECT_THRESH: f32 = 4.;  // The size of the smallest rectangle that 
 use crate::*;
 
 pub struct InputPlugin;
+
+pub struct MouseOverEvent {
+    pub pos: Vec2
+}
 
 pub enum MouseAction {
     // Position in world coordinates, shift
@@ -95,7 +99,6 @@ pub fn ui_selection_rect_system(
     
 }
 
-
 pub fn input_mouse_system(
     mb: Res<Input<MouseButton>>,
     kb: Res<Input<KeyCode>>,
@@ -103,40 +106,41 @@ pub fn input_mouse_system(
     q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
     q_map: Query<&Map, With<Map>>,
     mut input_actions: ResMut<InputActions>,
+    mut mouseover_ew: EventWriter<MouseOverEvent>,
 ) {
-
-    // On click
-    if mb.pressed(MouseButton::Left)
-    || mb.just_released(MouseButton::Left)
-    || mb.pressed(MouseButton::Right)
-    || mb.just_released(MouseButton::Right)
-     {  
-        let window = windows.get_primary().unwrap();
+    let window = windows.get_primary().unwrap();
+    if let Some(w_pos) = window.cursor_position() {  // If cursor is in window
         let map = q_map.single();
-        if let Some(w_pos) = window.cursor_position() {  // If cursor is in window
+        // Convert cursor position to world position
+        let (camera, camera_transform) = q_camera.single();
+        let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+        let ndc: Vec2 = (w_pos / window_size) * 2. - Vec2::ONE;
+        let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
+        let mut m_pos: Vec2 = ndc_to_world.project_point3(ndc.extend(-1.)).truncate();
+        
+        // Prevent selection from exceeding bounds of the world
+        if m_pos.x < 0. {
+            m_pos.x = 0.;
+        }
+        else if m_pos.x > map.w as f32 {
+            m_pos.x = map.w as f32;
+        }
+        if m_pos.y < 0. {
+            m_pos.y = 0.;
+        }
+        else if m_pos.y > map.h as f32 {
+            m_pos.y = map.h as f32;
+        }
 
+        mouseover_ew.send( MouseOverEvent { pos: m_pos } );
+
+        // On click
+        if mb.pressed(MouseButton::Left)
+        || mb.just_released(MouseButton::Left)
+        || mb.pressed(MouseButton::Right)
+        || mb.just_released(MouseButton::Right)
+        {  
             let shift: bool = kb.pressed(KeyCode::RShift) || kb.pressed(KeyCode::LShift);
-
-            // Convert cursor position to world position
-            let (camera, camera_transform) = q_camera.single();
-            let window_size = Vec2::new(window.width() as f32, window.height() as f32);
-            let ndc: Vec2 = (w_pos / window_size) * 2. - Vec2::ONE;
-            let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
-            let mut m_pos: Vec2 = ndc_to_world.project_point3(ndc.extend(-1.)).truncate();
-            
-            // Prevent selection from exceeding bounds of the world
-            if m_pos.x < 0. {
-                m_pos.x = 0.;
-            }
-            else if m_pos.x > map.w as f32 {
-                m_pos.x = map.w as f32;
-            }
-            if m_pos.y < 0. {
-                m_pos.y = 0.;
-            }
-            else if m_pos.y > map.h as f32 {
-                m_pos.y = map.h as f32;
-            }
             if mb.just_released(MouseButton::Left) {
                 match input_actions.mouse {
                     MouseAction::DraggingSelection(held, released, _) => {
@@ -166,9 +170,9 @@ pub fn input_mouse_system(
                 }
             }
         }
-    }
-    else {  // No mouse action
-        input_actions.mouse = MouseAction::NoAction;
+        else {  // No mouse action
+            input_actions.mouse = MouseAction::NoAction;
+        }
     }
 }
 

@@ -3,7 +3,6 @@
 #![allow(dead_code)]
 
 use bevy::prelude::*;
-use bevy_prototype_lyon::prelude::*;
 use konquer::{self, Map, GridLine};
 use konquer::spawner::*;
 

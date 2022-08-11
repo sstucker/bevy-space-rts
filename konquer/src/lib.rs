@@ -6,8 +6,9 @@
 use bevy::ecs::entity;
 use bevy::render::render_resource::Texture;
 use bevy::{prelude::*};
-use bevy::core::FixedTimestep;
+use bevy::time::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
+use rand::Rng;
 
 use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, f32::consts::PI};
 
@@ -24,7 +25,7 @@ pub mod spawner;
 pub use spawner::*;
 
 pub mod inputs;
-use inputs::InputPlugin;
+use inputs::{InputPlugin, MouseOverEvent};
 
 pub mod camera;
 pub use camera::*;
@@ -45,6 +46,7 @@ const PROJECTILE_ZORDER: f32 = 150.;
 const UNIT_ZORDER: f32 = 100.;
 const UI_ZORDER: f32 = 50.;
 const PLANET_ZORDER: f32 = 10.;
+const PLANET_UI_ZORDER: f32 = 200.;
 const WORLD_ZORDER: f32 = 0.;
 
 const MAP_W: i32 = 4096;
@@ -67,27 +69,24 @@ enum Stage {
 
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut App) {
-        // app.insert_resource(PlayerState::default())
-        //     .add_system_set(
-        //         SystemSet::new()
-        //             .with_run_criteria(FixedTimestep::step(0.5))
-        //             .with_system(player_spawn_system),
-        //     )
-        //     .add_system(player_keyboard_event_system)
-        //     .add_system(player_fire_system);
         app
             .insert_resource(Msaa { samples: 1 })
             .add_plugin(ShapePlugin)
             .add_plugin(InputPlugin)
             .add_plugin(AssetLoaderPlugin)
             .add_event::<SpawnUnitEvent>()
+            .add_event::<MouseOverEvent>()
             .add_startup_system(startup_system)
+            .add_startup_system_to_stage(StartupStage::PostStartup, ui_setup_system)
             .add_startup_system_to_stage(StartupStage::PostStartup, map_system)
             .add_plugin(KinematicCameraPlugin)
             .add_system_set(SystemSet::new()  // Unit updates
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(turret_track_and_fire_system).label(Stage::Kinematics)
                 .with_system(unit_movement_system).label(Stage::Kinematics)
+                .with_system(primary_satellite_orbit_system)
+                // .with_system(secondary_satellite_orbit_system).after(primary_satellite_orbit_system)
+                // .with_system(tertiary_satellite_orbit_system).after(secondary_satellite_orbit_system)
                 .with_system(projectile_movement_system)
                 .with_system(capital_ship_repulsion_system)
                 .with_system(capital_ship_destruction_system)
@@ -95,13 +94,14 @@ impl Plugin for UnitPlugin {
                 .with_system(unit_pathing_system)
             )
             .add_system_set(SystemSet::new() // Input 
-                // .with_run_criteria(FixedTimestep::step(1. / 60.))
+                .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(inputs::input_mouse_system)
             )
             // Graphics
             .add_system(ui_highlight_selected_system)
             .add_system(ui_show_path_system)
             .add_system(ui_show_hp_system)
+            .add_system(ui_planet_system)
             .add_system(explosion_to_spawn_system)
             .add_system(explosion_animation_system)
             // Mechanics
@@ -189,11 +189,11 @@ const TURRET_FIRE_THRESH: f32 = 10. * PI / 180.;  // radians
 fn turret_track_and_fire_system(
     mut commands: Commands,
     mut q_turret: Query<(&mut Turret, &Parent, &Subunit, &mut Velocity, &Body), With<Turret>>,
+    mut q_targets: Query<&mut Targets>,
     projectiles: Res<ProjectileRegistry>,
     texture_server: Res<TextureServer>,
     q_body: Query<&Body>,
     q_unit: Query<&Unit>,
-    mut q_targets: Query<&mut Targets>,
     q_velocity: Query<&Velocity, Without<Subunit>>,
     q_debug_graphics: Query<Entity, With<DebugTurretTargetLine>>,
     time: Res<Time>,
@@ -204,10 +204,10 @@ fn turret_track_and_fire_system(
         }
     }
     for (mut turret, turret_parent, subunit, mut turret_velocity, turret_body) in q_turret.iter_mut() {
-        let parent_unit: &Unit = q_unit.get(turret_parent.0).unwrap();
-        let mut targets = q_targets.get_mut(turret_parent.0).unwrap();
-        let parent_velocity: &Velocity = q_velocity.get(turret_parent.0).unwrap();
-        let turret_parent_body = q_body.get(turret_parent.0).unwrap();
+        let parent_unit: &Unit = q_unit.get(turret_parent.get()).unwrap();
+        let mut targets = q_targets.get_mut(turret_parent.get()).unwrap();
+        let parent_velocity: &Velocity = q_velocity.get(turret_parent.get()).unwrap();
+        let turret_parent_body = q_body.get(turret_parent.get()).unwrap();
         if let Some(target_entity) = targets.get_target() {
             if let Ok(target_body) = q_body.get(target_entity) {
                 let heading = Vec2::new(f32::cos(turret_body.position.z + turret_parent_body.position.z), f32::sin(turret_body.position.z + turret_parent_body.position.z));
@@ -247,14 +247,16 @@ fn turret_track_and_fire_system(
                                 dy: heading.y * projectile_data.velocity,
                                 dw: 0.0
                             })
-                            .insert_bundle( TransformBundle {
-                                local: Transform {
-                                    translation: Vec3::new( fire_from.x, fire_from.y, PROJECTILE_ZORDER ),
-                                    rotation: Quat::from_rotation_z( fire_from.z ),
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            })
+                            .insert_bundle( 
+                                SpatialBundle {
+                                    transform: Transform {
+                                            translation: Vec3::new( fire_from.x, fire_from.y, PROJECTILE_ZORDER ),
+                                            rotation: Quat::from_rotation_z( fire_from.z ),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                            )
                             .with_children(|parent| {
                                 for sprite_data in projectile_data.sprites.iter() {
                                     parent.spawn_bundle(sprite_bundle_from_data(sprite_data, &texture_server, PROJECTILE_ZORDER)).insert(ProjectileSprite);
@@ -516,50 +518,71 @@ fn projectile_movement_system(
     }
 }
 
-const SOLAR_RADIUS: f32 = 250.;
-const N_MAJOR_SATELLITES: i32 = 3;
+fn primary_satellite_orbit_system(
+    q_s0: Query<&Transform, Without<PrimarySatellite>>,
+    mut q_s1: Query<(Entity, &mut Transform, &mut Orbit), With<PrimarySatellite>>
+) { 
+    for (entity, mut orbiter_transform, mut orbit) in q_s1.iter_mut() {
+        if let Ok(parent_transform) = q_s0.get(orbit.parent) {
+            let parent_position = parent_transform.translation.truncate();
+            // Move orbiter
+            orbit.w += orbit.rate;
+            orbiter_transform.translation = Vec3::new(
+                parent_position.x + orbit.w.cos() * orbit.radius,
+                parent_position.y + orbit.w.sin() * orbit.radius,
+                orbiter_transform.translation.z
+            )
+        }
+    }
+}
+
+// TODO generative
+const SOLAR_RADIUS: f32 = 300.;
+const N_MAJOR_SATELLITES: i32 = 5;
 const MAX_MINOR_SATELLITES: i32 = 3;
 const MAX_MAJOR_SATELLITE_SIZE: f32 = 100.;
+const MIN_MAJOR_SATELLITE_SIZE: f32 = 50.;
+const ORBITAL_MARGIN: f32 = 100.;  // The distance between the furthest satellite and the edge of the map
+const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
 
 fn map_system(
     mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	texture_server: Res<TextureServer>,
-) {
-    commands.insert_resource( CollisionQuadtree::new(0, Rectangle2D { x: 0., y: 0., width: MAP_W as f32, height: MAP_H as f32 }) );
-    
+) { 
     // TODO call from main
     let map: Map = Map { w: MAP_W, h: MAP_H };
-	commands.spawn().insert(map)
+	commands.spawn().insert(map);
     // TODO move to UI, scale with zoom
-        .with_children(|parent| {
-            let mut draw_gridline = |p1: Vec2, p2: Vec2| {
-                let mut path_builder = PathBuilder::new();
-                path_builder.move_to(p1);
-                path_builder.line_to(p2);
-                let line = path_builder.build();
-                parent.spawn_bundle(GeometryBuilder::build_as(
-                    &line,
-                    DrawMode::Stroke(StrokeMode::new(
-                        Color::rgba(1., 1., 1., 0.2),
-                        1.0  // Always draw the same thickness of UI elements regardless of zoom
-                    )),
-                    Transform { translation: Vec3::new(0., 0., WORLD_ZORDER), ..Default::default() },
-                )).insert( GridLine );
-            };
-            for y in (0..map.h).step_by(256) {
-                draw_gridline(Vec2::new(0., y as f32), Vec2::new(MAP_W as f32, y as f32));
-            }
-            for x in (0..map.w).step_by(256) {
-                draw_gridline(Vec2::new(x as f32, 0.), Vec2::new(x as f32, MAP_H as f32));
-            }
-        });
+        // .with_children(|parent| {
+        //     let mut draw_gridline = |p1: Vec2, p2: Vec2| {
+        //         let mut path_builder = PathBuilder::new();
+        //         path_builder.move_to(p1);
+        //         path_builder.line_to(p2);
+        //         let line = path_builder.build();
+        //         parent.spawn_bundle(GeometryBuilder::build_as(
+        //             &line,
+        //             DrawMode::Stroke(StrokeMode::new(
+        //                 Color::rgba(1., 1., 1., 0.2),
+        //                 1.0
+        //             )),
+        //             Transform { translation: Vec3::new(0., 0., WORLD_ZORDER), ..Default::default() },
+        //         )).insert( GridLine );
+        //     };
+        //     for y in (0..map.h).step_by(256) {
+        //         draw_gridline(Vec2::new(0., y as f32), Vec2::new(MAP_W as f32, y as f32));
+        //     }
+        //     for x in (0..map.w).step_by(256) {
+        //         draw_gridline(Vec2::new(x as f32, 0.), Vec2::new(x as f32, MAP_H as f32));
+        //     }
+        // });
 
     // Generate solar system
 
     // Insert sun
-    commands.spawn().insert(Sun).insert_bundle( TransformBundle {
-        local: Transform {
+    // Would be sick to do binary systems...
+    let e_sun = commands.spawn().insert(Sun).insert_bundle( SpatialBundle {
+        transform: Transform {
             translation: Vec3::new(MAP_W as f32 / 2., MAP_H as f32 / 2., PLANET_ZORDER),
             ..Default::default()
         },
@@ -577,7 +600,64 @@ fn map_system(
         },
         Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
         ));
-    });
+    }).id();
+
+    // Insert satellites
+    let map_radius = (MAP_H as f32 / 2.).min(MAP_W as f32 / 2.);
+    let mut radii: Vec<f32> = Vec::new();
+    for i in 0..N_MAJOR_SATELLITES {
+        radii.push((i as f32 + 2.) * (map_radius - ORBITAL_MARGIN * 2.) / N_MAJOR_SATELLITES as f32);
+    }
+    for (i, orbital_radius) in radii.iter().enumerate() {
+        println!("Generating major satellite at orbital radius {}", orbital_radius);
+        let r = rand::thread_rng().gen_range(MIN_MAJOR_SATELLITE_SIZE..MAX_MAJOR_SATELLITE_SIZE);
+        let rand_color = [Color::CRIMSON, Color::VIOLET, Color::ALICE_BLUE, Color::AQUAMARINE, Color::CYAN, Color::BEIGE][rand::thread_rng().gen_range(0..6)];
+        let planet_name = PLANET_NAMES[i];
+        let r_grav = r * 3.;
+        let orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
+        let orbital_rate = rand::thread_rng().gen_range(1.0..5.0) * 0.00005;
+        commands.spawn()
+        .insert(PrimarySatellite)
+        .insert(Orbiter)
+        .insert(Planet {
+            name: planet_name.to_string(),
+            radius: r,
+            gravity_radius: r_grav
+        })
+        .insert(Orbit {
+            parent: e_sun,
+            radius: orbital_radius.clone(),
+            w: orbital_angle,
+            rate: orbital_rate,  // Radians per frame
+        })
+        .insert_bundle(
+            SpatialBundle {
+                transform: Transform {
+                    translation: Vec3::new(
+                        MAP_W as f32 / 2. + orbital_angle.cos() * orbital_radius,
+                        MAP_H as f32 / 2. + orbital_angle.sin() * orbital_radius,
+                        PLANET_ZORDER
+                    ),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        )
+        .with_children(|parent| {
+            parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                sides: 60,
+                feature: shapes::RegularPolygonFeature::Radius(r),
+                ..shapes::RegularPolygon::default()
+            },
+            DrawMode::Outlined {
+                fill_mode: FillMode::color(rand_color),
+                outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
+            },
+            Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
+            ));
+        });
+    }
+
 }
 
 pub fn get_absolute_position(subunit_position: Vec3, parent_position: Vec3) -> Vec3 {

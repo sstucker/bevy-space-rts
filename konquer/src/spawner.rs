@@ -61,8 +61,8 @@ pub fn spawn_units_system(
                     ec.insert( Selectable );
                     ec.insert( UnitPath::new() );
                     // Unit master transform
-                    ec.insert_bundle( TransformBundle {
-                        local: Transform {
+                    ec.insert_bundle( SpatialBundle {
+                        transform: Transform {
                             translation: Vec3::new( ev.position.x, ev.position.y, UNIT_ZORDER ),
                             rotation: Quat::from_rotation_z( ev.position.z ),
                             ..Default::default()
@@ -164,8 +164,15 @@ fn add_subunit(
     let subunit_size = Vec2::new(subunit_data.size[0], subunit_data.size[1]);
     let subunit_pos = Vec3::new(hardpoint_data.position[0], hardpoint_data.position[1], hardpoint_data.position[2]);
     let mut ec = parent.spawn();
+    ec.insert_bundle( SpatialBundle {
+        transform: Transform {
+            translation: Vec3::new(subunit_pos.x * SPRITE_SCALE, subunit_pos.y * SPRITE_SCALE, hardpoint_data.z_order),
+            rotation: Quat::from_rotation_z( subunit_pos.z ),
+                ..Default::default()
+            },
+        ..Default::default()
+    });
     for sprite_data in subunit_data.sprites.iter() {
-        let sprite_z = sprite_data.z_order + hardpoint_data.z_order;
         let sprite_size = Vec2::new(sprite_data.size[0], sprite_data.size[1]);
         ec.insert_bundle(SpriteBundle {
             texture: texture_server.get(&sprite_data.texture).typed::<Image>(),
@@ -173,11 +180,7 @@ fn add_subunit(
                 custom_size: Some(sprite_size * SPRITE_SCALE),
                 ..Default::default()
             },
-            transform: Transform {
-                translation: Vec3::new(subunit_pos.x * SPRITE_SCALE, subunit_pos.y * SPRITE_SCALE, sprite_z),
-                rotation: Quat::from_rotation_z( subunit_pos.z ),
-                    ..Default::default()
-                },
+            transform: Transform { translation: Vec3::new(0., 0., sprite_data.z_order), ..Default::default() },
             ..Default::default()
         });
     }

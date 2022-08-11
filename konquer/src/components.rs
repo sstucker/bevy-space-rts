@@ -1,5 +1,5 @@
 use std::{collections::VecDeque, marker::PhantomData, time::Duration};
-use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}, core::Timer};
+use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}, time::Timer};
 use std::{sync::atomic::{AtomicU8, Ordering}};
 use crate::{Player, SPRITE_SCALE};
 
@@ -16,8 +16,43 @@ pub fn get_components_for_entity<'a>(
     None
 }
 
+// An orbiter is any satellite or body with satellites.
+#[derive(Component, Clone, Copy)]
+pub struct Orbiter;
+
 #[derive(Component, Clone, Copy)]
 pub struct Sun;
+
+// Planets
+#[derive(Component, Clone, Copy)]
+pub struct PrimarySatellite;
+
+// Moons
+#[derive(Component, Clone, Copy)]
+pub struct SecondarySatellite;
+
+// Space stations, asteroid belts
+#[derive(Component, Clone, Copy)]
+pub struct TertiarySatellite;
+
+#[derive(Component, Clone)]
+pub struct PlanetUI;
+
+#[derive(Component, Clone)]
+pub struct Planet {
+    pub name: String,
+    pub radius: f32,
+    pub gravity_radius: f32
+}
+
+
+#[derive(Component, Clone, Copy)]
+pub struct Orbit {
+    pub parent: Entity,  // TypedEntity pattern!
+    pub radius: f32,
+    pub w: f32,
+    pub rate: f32,
+}
 
 #[derive(Component, Clone, Copy)]
 pub struct Map {
