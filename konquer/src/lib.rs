@@ -49,8 +49,8 @@ const PLANET_ZORDER: f32 = 10.;
 const PLANET_UI_ZORDER: f32 = 200.;
 const WORLD_ZORDER: f32 = 0.;
 
-const MAP_W: i32 = 4096;
-const MAP_H: i32 = 4096;
+const MAP_W: i32 = 8192;
+const MAP_H: i32 = 8192;
 
 const SPRITE_SCALE: f32 = 0.01;
 
@@ -85,7 +85,7 @@ impl Plugin for UnitPlugin {
                 .with_system(turret_track_and_fire_system).label(Stage::Kinematics)
                 .with_system(unit_movement_system).label(Stage::Kinematics)
                 .with_system(primary_satellite_orbit_system)
-                // .with_system(secondary_satellite_orbit_system).after(primary_satellite_orbit_system)
+                .with_system(secondary_satellite_orbit_system)
                 // .with_system(tertiary_satellite_orbit_system).after(secondary_satellite_orbit_system)
                 .with_system(projectile_movement_system)
                 .with_system(capital_ship_repulsion_system)
@@ -536,12 +536,33 @@ fn primary_satellite_orbit_system(
     }
 }
 
+fn secondary_satellite_orbit_system(
+    q_s1: Query<&Transform, (With<PrimarySatellite>, Without<SecondarySatellite>)>,
+    mut q_s2: Query<(Entity, &mut Transform, &mut Orbit), With<SecondarySatellite>>
+) { 
+    for (entity, mut orbiter_transform, mut orbit) in q_s2.iter_mut() {
+        if let Ok(parent_transform) = q_s1.get(orbit.parent) {
+            let parent_position = parent_transform.translation.truncate();
+            orbit.w += orbit.rate;
+            orbiter_transform.translation = Vec3::new(
+                parent_position.x + orbit.w.cos() * orbit.radius,
+                parent_position.y + orbit.w.sin() * orbit.radius,
+                orbiter_transform.translation.z
+            )
+        }
+    }
+}
+
 // TODO generative
-const SOLAR_RADIUS: f32 = 300.;
-const N_MAJOR_SATELLITES: i32 = 5;
-const MAX_MINOR_SATELLITES: i32 = 3;
-const MAX_MAJOR_SATELLITE_SIZE: f32 = 100.;
-const MIN_MAJOR_SATELLITE_SIZE: f32 = 50.;
+const SOLAR_RADIUS: f32 = 400.;
+const N_PRIMARY_SATELLITES: i32 = 5;
+const MAX_SECONDARY_SATELLITES: i32 = 3;
+const MAX_PRIMARY_SATELLITE_SIZE: f32 = 150.;
+const MIN_PRIMARY_SATELLITE_SIZE: f32 = 100.;
+const MAX_SECONDARY_SATELLITE_SIZE: f32 = 50.;
+const MIN_SECONDARY_SATELLITE_SIZE: f32 = 25.;
+const SECONDARY_RADII: f32 = 450.;  // TODO randomize
+const ORBITAL_RATE: f32 = 0.001;
 const ORBITAL_MARGIN: f32 = 100.;  // The distance between the furthest satellite and the edge of the map
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
 
@@ -605,21 +626,26 @@ fn map_system(
     // Insert satellites
     let map_radius = (MAP_H as f32 / 2.).min(MAP_W as f32 / 2.);
     let mut radii: Vec<f32> = Vec::new();
-    for i in 0..N_MAJOR_SATELLITES {
-        radii.push((i as f32 + 2.) * (map_radius - ORBITAL_MARGIN * 2.) / N_MAJOR_SATELLITES as f32);
+    for i in 0..N_PRIMARY_SATELLITES {
+        radii.push((i as f32 + 2.) * (map_radius - ORBITAL_MARGIN * 2.) / N_PRIMARY_SATELLITES as f32);
     }
     for (i, orbital_radius) in radii.iter().enumerate() {
         println!("Generating major satellite at orbital radius {}", orbital_radius);
-        let r = rand::thread_rng().gen_range(MIN_MAJOR_SATELLITE_SIZE..MAX_MAJOR_SATELLITE_SIZE);
+        let r = rand::thread_rng().gen_range(MIN_PRIMARY_SATELLITE_SIZE..MAX_PRIMARY_SATELLITE_SIZE);
         let rand_color = [Color::CRIMSON, Color::VIOLET, Color::ALICE_BLUE, Color::AQUAMARINE, Color::CYAN, Color::BEIGE][rand::thread_rng().gen_range(0..6)];
         let planet_name = PLANET_NAMES[i];
         let r_grav = r * 3.;
         let orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
-        let orbital_rate = rand::thread_rng().gen_range(1.0..5.0) * 0.00005;
-        commands.spawn()
+        let orbital_rate = rand::thread_rng().gen_range(1.0..5.0) * ORBITAL_RATE;
+        let position = Vec3::new(
+            MAP_W as f32 / 2. + orbital_angle.cos() * orbital_radius,
+            MAP_H as f32 / 2. + orbital_angle.sin() * orbital_radius,
+            PLANET_ZORDER
+        );
+        let e_planet = commands.spawn()
         .insert(PrimarySatellite)
         .insert(Orbiter)
-        .insert(Planet {
+        .insert(EnvironmentalSatellite {
             name: planet_name.to_string(),
             radius: r,
             gravity_radius: r_grav
@@ -633,11 +659,7 @@ fn map_system(
         .insert_bundle(
             SpatialBundle {
                 transform: Transform {
-                    translation: Vec3::new(
-                        MAP_W as f32 / 2. + orbital_angle.cos() * orbital_radius,
-                        MAP_H as f32 / 2. + orbital_angle.sin() * orbital_radius,
-                        PLANET_ZORDER
-                    ),
+                    translation: position,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -655,7 +677,55 @@ fn map_system(
             },
             Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
             ));
-        });
+        }).id();
+        // for i in 0..rand::thread_rng().gen_range(0..MAX_SECONDARY_SATELLITES) {
+        for i in 0..2 {
+            let s2_r = rand::thread_rng().gen_range(MIN_SECONDARY_SATELLITE_SIZE..MAX_SECONDARY_SATELLITE_SIZE);
+            let s2_rand_color = [Color::CRIMSON, Color::VIOLET, Color::ALICE_BLUE, Color::AQUAMARINE, Color::CYAN, Color::BEIGE][rand::thread_rng().gen_range(0..6)];
+            let s2_r_grav = s2_r * 2.;
+            let s2_orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
+            let s2_orbital_rate = rand::thread_rng().gen_range(1.0..3.0) * ORBITAL_RATE;
+            let s2_orbital_radius = SECONDARY_RADII * (i as f32 + 1.);
+            let mut s2_position = position.clone();
+            s2_position.x += s2_orbital_angle.cos() * s2_orbital_radius;
+            s2_position.y += s2_orbital_angle.sin() * s2_orbital_radius;
+            let e_moon = commands.spawn()
+            .insert(SecondarySatellite)
+            .insert(Orbiter)
+            .insert(EnvironmentalSatellite {
+                name: planet_name.to_string() + " " + &i.to_string(),  // TODO generative moon names
+                radius: s2_r,
+                gravity_radius: s2_r_grav
+            })
+            .insert(Orbit {
+                parent: e_planet,
+                radius: s2_orbital_radius,
+                w: s2_orbital_angle,
+                rate: s2_orbital_rate,  // Radians per frame
+            })
+            .insert_bundle(
+                SpatialBundle {
+                    transform: Transform {
+                        translation: s2_position,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            )
+            .with_children(|parent| {
+                parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                    sides: 60,
+                    feature: shapes::RegularPolygonFeature::Radius(s2_r),
+                    ..shapes::RegularPolygon::default()
+                },
+                DrawMode::Outlined {
+                    fill_mode: FillMode::color(s2_rand_color),
+                    outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
+                },
+                Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
+                ));
+            }).id();
+        }
     }
 
 }

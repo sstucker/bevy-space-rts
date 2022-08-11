@@ -137,7 +137,8 @@ pub fn ui_planet_system(
     mut commands: Commands,
     windows: Res<Windows>,
     q_ui: Query<Entity, With<PlanetUI>>, 
-    q_planets: Query<(&Planet, &Orbit, &Transform), With<Planet>>, 
+    q_planets: Query<(&EnvironmentalSatellite, &Orbit, &Transform), With<EnvironmentalSatellite>>, 
+    q_transform: Query<&Transform>, 
     q_camera: Query<&OrthographicProjection, With<Camera>>,
     mut mouseover_ev: EventReader<MouseOverEvent>,
     asset_server: Res<AssetServer>,
@@ -150,6 +151,8 @@ pub fn ui_planet_system(
     for event in mouseover_ev.iter() {
         for (planet, orbit, planet_transform) in q_planets.iter() {
             if event.pos.distance(planet_transform.translation.truncate()) < planet.radius + planet.radius * scale_factor.max(8.).min(1.) {
+                let mut orbit_center = q_transform.get(orbit.parent).unwrap().translation;
+                orbit_center.z = WORLD_ZORDER + 1.;
                 let window = windows.get_primary().unwrap();
                 println!("Scale factor is {}", scale_factor);
                 let map = q_map.get_single().unwrap();
@@ -167,9 +170,9 @@ pub fn ui_planet_system(
                     },
                     DrawMode::Outlined {
                         fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
-                        outline_mode: StrokeMode::new(Color::rgba(0.1, 1., 1., 1.), 4. * scale_factor),
+                        outline_mode: StrokeMode::new(Color::rgba(0.1, 1., 1., 1.), 2. * scale_factor),
                     },
-                    Transform { translation: Vec3::new(map.w as f32 / 2., map.h as f32 / 2., WORLD_ZORDER + 1.), ..Default::default() },
+                    Transform { translation: orbit_center, ..Default::default() },
                 )).insert(PlanetUI);
 
                 // Display planet's name and information

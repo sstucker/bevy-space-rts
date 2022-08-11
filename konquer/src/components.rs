@@ -20,6 +20,15 @@ pub fn get_components_for_entity<'a>(
 #[derive(Component, Clone, Copy)]
 pub struct Orbiter;
 
+// Planets and moons are environmental satellites
+#[derive(Component, Clone)]
+pub struct EnvironmentalSatellite {
+    pub name: String,
+    pub radius: f32,
+    pub gravity_radius: f32
+}
+
+// The sun is the large body at the middle of the map
 #[derive(Component, Clone, Copy)]
 pub struct Sun;
 
@@ -37,14 +46,6 @@ pub struct TertiarySatellite;
 
 #[derive(Component, Clone)]
 pub struct PlanetUI;
-
-#[derive(Component, Clone)]
-pub struct Planet {
-    pub name: String,
-    pub radius: f32,
-    pub gravity_radius: f32
-}
-
 
 #[derive(Component, Clone, Copy)]
 pub struct Orbit {
