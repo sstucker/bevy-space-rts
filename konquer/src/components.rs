@@ -17,9 +17,12 @@ pub fn get_components_for_entity<'a>(
 }
 
 #[derive(Component, Clone, Copy)]
+pub struct Sun;
+
+#[derive(Component, Clone, Copy)]
 pub struct Map {
-    pub w: i32,  // The human-readable name of the unit
-    pub h: i32,  // The player of the unit
+    pub w: i32,  // Map width
+    pub h: i32,  // Map height
 }
 
 #[derive(Component)]

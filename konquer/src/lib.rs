@@ -41,13 +41,14 @@ static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 const DEBUG_GRAPHICS: bool = false;
 
 // TODO parameterize and IO
-const UI_ZORDER: f32 = 20.;
+const PROJECTILE_ZORDER: f32 = 150.;
 const UNIT_ZORDER: f32 = 100.;
-const PROJECTILE_ZORDER: f32 = 200.;
+const UI_ZORDER: f32 = 50.;
+const PLANET_ZORDER: f32 = 10.;
 const WORLD_ZORDER: f32 = 0.;
 
-const MAP_W: i32 = 500;
-const MAP_H: i32 = 500;
+const MAP_W: i32 = 4096;
+const MAP_H: i32 = 4096;
 
 const SPRITE_SCALE: f32 = 0.01;
 
@@ -75,7 +76,7 @@ impl Plugin for UnitPlugin {
         //     .add_system(player_keyboard_event_system)
         //     .add_system(player_fire_system);
         app
-            .insert_resource(Msaa { samples: 4 })
+            .insert_resource(Msaa { samples: 1 })
             .add_plugin(ShapePlugin)
             .add_plugin(InputPlugin)
             .add_plugin(AssetLoaderPlugin)
@@ -163,7 +164,6 @@ fn unit_pathing_system(
             } else {
                 0.
             };
-        
             if cross.abs() < HEADING_THRESH_BURN {  // If we are close enough to the right heading to use rear thrusters
                 // TODO get values from thrusters
                 // Rear thrusters
@@ -174,12 +174,10 @@ fn unit_pathing_system(
                 velocity.dy += target.y * 0.003 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
 
             }
-
             if dist_to_dest < THRESH_ARRIVAL {
                 // TODO interface
                 path.path.pop_front();
             }
-
         }
     }
 
@@ -518,45 +516,67 @@ fn projectile_movement_system(
     }
 }
 
+const SOLAR_RADIUS: f32 = 250.;
+const N_MAJOR_SATELLITES: i32 = 3;
+const MAX_MINOR_SATELLITES: i32 = 3;
+const MAX_MAJOR_SATELLITE_SIZE: f32 = 100.;
+
 fn map_system(
     mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	mut q_camera: Query<(&OrthographicProjection, &mut Transform), With<Camera>>,
+	texture_server: Res<TextureServer>,
 ) {
-    
     commands.insert_resource( CollisionQuadtree::new(0, Rectangle2D { x: 0., y: 0., width: MAP_W as f32, height: MAP_H as f32 }) );
     
+    // TODO call from main
     let map: Map = Map { w: MAP_W, h: MAP_H };
-	let mut ec = commands.spawn();
-    ec.insert(map);
+	commands.spawn().insert(map)
+    // TODO move to UI, scale with zoom
+        .with_children(|parent| {
+            let mut draw_gridline = |p1: Vec2, p2: Vec2| {
+                let mut path_builder = PathBuilder::new();
+                path_builder.move_to(p1);
+                path_builder.line_to(p2);
+                let line = path_builder.build();
+                parent.spawn_bundle(GeometryBuilder::build_as(
+                    &line,
+                    DrawMode::Stroke(StrokeMode::new(
+                        Color::rgba(1., 1., 1., 0.2),
+                        1.0  // Always draw the same thickness of UI elements regardless of zoom
+                    )),
+                    Transform { translation: Vec3::new(0., 0., WORLD_ZORDER), ..Default::default() },
+                )).insert( GridLine );
+            };
+            for y in (0..map.h).step_by(256) {
+                draw_gridline(Vec2::new(0., y as f32), Vec2::new(MAP_W as f32, y as f32));
+            }
+            for x in (0..map.w).step_by(256) {
+                draw_gridline(Vec2::new(x as f32, 0.), Vec2::new(x as f32, MAP_H as f32));
+            }
+        });
 
-    // Draw map grid
-	let (projection, mut transform) = q_camera.single_mut();
-    
-    transform.translation.x = MAP_W as f32 / 2.;
-    transform.translation.y = MAP_H as f32 / 2.;
+    // Generate solar system
 
-    ec.with_children(|parent| {
-        let mut draw_gridline = |p1: Vec2, p2: Vec2| {
-            let mut path_builder = PathBuilder::new();
-            path_builder.move_to(p1);
-            path_builder.line_to(p2);
-            let line = path_builder.build();
-            parent.spawn_bundle(GeometryBuilder::build_as(
-                &line,
-                DrawMode::Stroke(StrokeMode::new(
-                    Color::rgba(1., 1., 1., 0.2),
-                    1.0 * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
-                )),
-                Transform { translation: Vec3::new(0., 0., WORLD_ZORDER), ..Default::default() },
-            )).insert( GridLine );
-        };
-        for y in (0..map.h).step_by(100) {
-            draw_gridline(Vec2::new(0., y as f32), Vec2::new(MAP_W as f32, y as f32));
-        }
-        for x in (0..map.w).step_by(100) {
-            draw_gridline(Vec2::new(x as f32, 0.), Vec2::new(x as f32, MAP_H as f32));
-        }
+    // Insert sun
+    commands.spawn().insert(Sun).insert_bundle( TransformBundle {
+        local: Transform {
+            translation: Vec3::new(MAP_W as f32 / 2., MAP_H as f32 / 2., PLANET_ZORDER),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .with_children(|parent| {
+        parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+            sides: 90,
+            feature: shapes::RegularPolygonFeature::Radius(SOLAR_RADIUS),
+            ..shapes::RegularPolygon::default()
+        },
+        DrawMode::Outlined {
+            fill_mode: FillMode::color(Color::YELLOW),
+            outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
+        },
+        Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
+        ));
     });
 }
 
