@@ -24,6 +24,7 @@ pub struct Orbiter;
 #[derive(Component, Clone)]
 pub struct EnvironmentalSatellite {
     pub name: String,
+    pub class: String,
     pub radius: f32,
     pub gravity_radius: f32
 }

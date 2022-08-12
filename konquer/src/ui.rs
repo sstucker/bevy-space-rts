@@ -5,13 +5,6 @@ use bevy::{prelude::*, ecs::query, input::mouse::MouseMotion, text::FontLoader};
 
 use crate::{*, inputs::MouseOverEvent};
 
-pub fn ui_setup_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>
-) {
-    
-}
-
 pub fn ui_highlight_selected_system(
     mut commands: Commands,
     q_circ: Query<Entity, With<UnitSelectedCircle>>,
@@ -133,6 +126,13 @@ pub fn ui_show_path_system(
         }
     }
 }
+
+pub fn ui_fps_system(
+
+) {
+    
+}
+
 pub fn ui_planet_system(
     mut commands: Commands,
     windows: Res<Windows>,
@@ -142,6 +142,7 @@ pub fn ui_planet_system(
     q_camera: Query<&OrthographicProjection, With<Camera>>,
     mut mouseover_ev: EventReader<MouseOverEvent>,
     asset_server: Res<AssetServer>,
+    fonts: Res<Fonts>,
     q_map: Query<&Map>
 ) {
     for entity in q_ui.iter() {
@@ -150,15 +151,15 @@ pub fn ui_planet_system(
     let scale_factor = q_camera.single().scale;
     for event in mouseover_ev.iter() {
         for (planet, orbit, planet_transform) in q_planets.iter() {
-            if event.pos.distance(planet_transform.translation.truncate()) < planet.radius + planet.radius * scale_factor.max(8.).min(1.) {
+            if event.pos.distance(planet_transform.translation.truncate()) < planet.radius + planet.radius * scale_factor.min(10.).max(1.) {
                 let mut orbit_center = q_transform.get(orbit.parent).unwrap().translation;
                 orbit_center.z = WORLD_ZORDER + 1.;
                 let window = windows.get_primary().unwrap();
-                println!("Scale factor is {}", scale_factor);
+                // println!("Scale factor is {}", scale_factor);
                 let map = q_map.get_single().unwrap();
                 let ui_pos = planet_transform.translation.truncate() + Vec2::new(70.0, 50.0) * scale_factor;
                 let text_style = TextStyle {
-                    font: asset_server.load("fonts/Oxanium-Medium.ttf"),
+                    font: fonts.h2.clone(),
                     font_size: 30.0 * scale_factor,
                     color: Color::WHITE,
                 };

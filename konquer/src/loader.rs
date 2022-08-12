@@ -134,6 +134,7 @@ impl Plugin for AssetLoaderPlugin {
             .insert_resource( UnitDataCollection::new() )
             .insert_resource( TextureServer::new() )
             .add_startup_system(load_textures_system)
+            .add_startup_system(load_fonts_system)
             .add_startup_system(load_subunits_system.after(load_textures_system))
             .add_startup_system(load_projectiles_system.after(load_subunits_system))
             .add_startup_system(load_assemblies_system.after(load_projectiles_system))
@@ -148,10 +149,26 @@ impl Plugin for AssetLoaderPlugin {
     }
 }
 
+pub struct Fonts {
+    pub h2: Handle<Font>,
+    pub serif_ui: Handle<Font>
+}
+
 const ASSEMBLY_DIR: &str = "assets/data/assemblies";
 const SUBUNIT_DIR: &str = "assets/data/subunits";
 const PLATFORM_DIR: &str = "assets/data/platforms";
 const PROJECTILE_DIR: &str = "assets/data/projectiles";
+
+fn load_fonts_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>
+) {
+    commands.insert_resource(Fonts {
+        h2: asset_server.load("fonts/Oxanium-Medium.ttf"),
+        serif_ui: asset_server.load("fonts/Elron-Monospace.ttf")
+    });
+    println!("Loaded fonts.")
+}
 
 fn load_textures_system(
     mut texture_server: ResMut<TextureServer>,
