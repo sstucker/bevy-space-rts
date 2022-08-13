@@ -180,6 +180,7 @@ fn unit_pathing_system(
                 velocity.dy += target.y * 0.003 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
 
             }
+
             if dist_to_dest < THRESH_ARRIVAL {
                 // TODO interface
                 path.path.pop_front();

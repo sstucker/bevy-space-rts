@@ -26,7 +26,6 @@ pub struct EnvironmentalSatellite {
     pub name: String,
     pub class: String,
     pub radius: f32,
-    pub gravity_radius: f32
 }
 
 // The sun is the large body at the middle of the map
@@ -46,7 +45,10 @@ pub struct SecondarySatellite;
 pub struct TertiarySatellite;
 
 #[derive(Component, Clone)]
-pub struct PlanetUI;
+pub struct PlanetInfoUI;
+
+#[derive(Component, Clone)]
+pub struct PlanetOrbitUI;
 
 #[derive(Component, Clone, Copy)]
 pub struct Orbit {

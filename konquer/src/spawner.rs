@@ -172,18 +172,20 @@ fn add_subunit(
             },
         ..Default::default()
     });
+    ec.with_children(|parent2| {
     for sprite_data in subunit_data.sprites.iter() {
         let sprite_size = Vec2::new(sprite_data.size[0], sprite_data.size[1]);
-        ec.insert_bundle(SpriteBundle {
-            texture: texture_server.get(&sprite_data.texture).typed::<Image>(),
-            sprite: Sprite {
-                custom_size: Some(sprite_size * SPRITE_SCALE),
+            parent2.spawn_bundle(SpriteBundle {
+                texture: texture_server.get(&sprite_data.texture).typed::<Image>(),
+                sprite: Sprite {
+                    custom_size: Some(sprite_size * SPRITE_SCALE),
+                    ..Default::default()
+                },
+                transform: Transform { translation: Vec3::new(0., 0., sprite_data.z_order), ..Default::default() },
                 ..Default::default()
-            },
-            transform: Transform { translation: Vec3::new(0., 0., sprite_data.z_order), ..Default::default() },
-            ..Default::default()
-        });
-    }
+            });
+        }
+    });
     ec
     .insert(
         Body::new(
@@ -207,11 +209,6 @@ fn add_subunit(
                 vsources
             ))
             .insert(Velocity { ..Default::default() });
-            // .insert(Targets::new());  Not sure if turrets need their own target deque
-            // .insert(Range {
-            //     sight: fire_range,
-            //     fire: fire_range
-            // });
         },
         SubunitClassData::Thruster { forward_thrust } => {
             ec.insert(Thruster {

@@ -136,36 +136,32 @@ pub fn ui_fps_system(
 pub fn ui_planet_system(
     mut commands: Commands,
     windows: Res<Windows>,
-    q_ui: Query<Entity, With<PlanetUI>>, 
-    q_planets: Query<(&EnvironmentalSatellite, &Orbit, &Transform), With<EnvironmentalSatellite>>, 
-    q_transform: Query<&Transform>, 
+    q_orbit_ui: Query<Entity, With<PlanetOrbitUI>>, 
+    mut q_info_ui: Query<(&mut Visibility, &mut Transform), (With<PlanetInfoUI>, Without<EnvironmentalSatellite>)>, 
+    q_planets: Query<(&EnvironmentalSatellite, &Children, &Orbit, &Transform), With<EnvironmentalSatellite>>, 
+    q_transform: Query<&Transform, Without<PlanetInfoUI>>, 
     q_camera: Query<&OrthographicProjection, With<Camera>>,
     mut mouseover_ev: EventReader<MouseOverEvent>,
-    asset_server: Res<AssetServer>,
-    fonts: Res<Fonts>,
-    q_map: Query<&Map>
 ) {
-    for entity in q_ui.iter() {
-        commands.entity(entity).despawn_recursive();
-    }
     let scale_factor = q_camera.single().scale;
+    // println!("Scale factor is {}", scale_factor);
+    if !mouseover_ev.is_empty() {
+        for entity in q_orbit_ui.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        for (mut vis, _) in q_info_ui.iter_mut() {
+            vis.is_visible = false;
+        }
+    }
     for event in mouseover_ev.iter() {
-        for (planet, orbit, planet_transform) in q_planets.iter() {
-            if event.pos.distance(planet_transform.translation.truncate()) < planet.radius + planet.radius * scale_factor.min(10.).max(1.) {
+        for (planet, children, orbit, planet_transform) in q_planets.iter() {
+            if event.pos.distance(planet_transform.translation.truncate()) < planet.radius {
                 let mut orbit_center = q_transform.get(orbit.parent).unwrap().translation;
                 orbit_center.z = WORLD_ZORDER + 1.;
-                let window = windows.get_primary().unwrap();
-                // println!("Scale factor is {}", scale_factor);
-                let map = q_map.get_single().unwrap();
-                let ui_pos = planet_transform.translation.truncate() + Vec2::new(70.0, 50.0) * scale_factor;
-                let text_style = TextStyle {
-                    font: fonts.h2.clone(),
-                    font_size: 30.0 * scale_factor,
-                    color: Color::WHITE,
-                };
+
                 // Display planet's orbit
                 commands.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
-                    sides: 60,
+                    sides: 128,
                     feature: shapes::RegularPolygonFeature::Radius(orbit.radius),
                     ..shapes::RegularPolygon::default()
                     },
@@ -174,25 +170,31 @@ pub fn ui_planet_system(
                         outline_mode: StrokeMode::new(Color::rgba(0.1, 1., 1., 1.), 2. * scale_factor),
                     },
                     Transform { translation: orbit_center, ..Default::default() },
-                )).insert(PlanetUI);
+                )).insert(PlanetOrbitUI);
 
-                // Display planet's name and information
-                commands.spawn().insert(PlanetUI)
-                .insert_bundle(SpatialBundle {
-                    transform: Transform {
-                        translation: Vec3::new(ui_pos.x, ui_pos.y, PLANET_ZORDER + 1.),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn_bundle(Text2dBundle {
-                        text: Text::from_section(&planet.name.to_uppercase(), text_style.clone())
-                            .with_alignment(TextAlignment::CENTER),
-                        ..default()
-                    });
-                });
-                return
+                // Display planet's orbital radius
+                if planet.class == "Planet" {
+                    commands.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
+                        sides: 128,
+                        feature: shapes::RegularPolygonFeature::Radius(planet.radius * 5.),
+                        ..shapes::RegularPolygon::default()
+                        },
+                        DrawMode::Outlined {
+                            fill_mode: FillMode::color(Color::rgba(0.1, 0.1, 0.1, 0.5)),
+                            outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
+                        },
+                        Transform { translation: planet_transform.translation.truncate().extend(WORLD_ZORDER + 2.), ..Default::default() },
+                    )).insert(PlanetOrbitUI);
+                }
+
+                // Unhide the info
+                for child in children.iter() {
+                    if let Ok((mut vis, mut transform)) = q_info_ui.get_mut(*child) {
+                        transform.translation = Vec3::new(100., -100., 0.) * scale_factor.min(4.5);
+                        transform.scale = Vec3::new(1., 1., 0.) * scale_factor;
+                        vis.is_visible = true;
+                    }
+                }
             }
         }
     }

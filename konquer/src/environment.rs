@@ -13,7 +13,7 @@ const MIN_PRIMARY_SATELLITE_SIZE: f32 = 100.;
 const MAX_SECONDARY_SATELLITE_SIZE: f32 = 50.;
 const MIN_SECONDARY_SATELLITE_SIZE: f32 = 25.;
 const SECONDARY_RADII: f32 = 450.;  // TODO randomize
-const ORBITAL_RATE: f32 = 0.001;
+const ORBITAL_RATE: f32 = 0.00001;
 const ORBITAL_MARGIN: f32 = 100.;  // The distance between the furthest satellite and the edge of the map
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
 
@@ -75,8 +75,7 @@ pub fn setup_environment_system(
         .insert(EnvironmentalSatellite {
             name: planet_name.to_string(),
             class: "Planet".to_string(),
-            radius: r,
-            gravity_radius: r * 3.
+            radius: r
         })
         .insert(Orbit {
             parent: e_sun,
@@ -108,8 +107,7 @@ pub fn setup_environment_system(
             .insert(EnvironmentalSatellite {
                 name: planet_name.to_string() + " " + &i.to_string(),  // TODO generative moon names
                 class: "Moon".to_string(),
-                radius: s2_r,
-                gravity_radius: s2_r * 2.
+                radius: s2_r
             })
             .insert(Orbit {
                 parent: e_planet,
@@ -132,13 +130,22 @@ pub fn setup_environment_system(
 // Inserts graphical children
 pub fn setup_environment_appearance_system(
     mut commands: Commands,
-    query: Query<(Entity, &EnvironmentalSatellite, &Orbit), With<EnvironmentalSatellite>>
+    query: Query<(Entity, &EnvironmentalSatellite, &Transform, &Orbit), With<EnvironmentalSatellite>>,
+    q_transform: Query<&Transform>,
+    fonts: Res<Fonts>
 ) {
-    for (entity, planet, orbit) in query.iter() {
+    for (entity, planet, planet_transform, orbit) in query.iter() {
         let r_color = [Color::SALMON, Color::PURPLE, Color::AQUAMARINE, Color::BEIGE, Color::DARK_GREEN, Color::PINK][rand::thread_rng().gen_range(0..5)];
         let mut ec = commands.entity(entity);
+        let text_style = TextStyle {
+            font: fonts.h2.clone(),
+            font_size: 30.0,
+            color: Color::WHITE,
+        };
+        let orbit_center = q_transform.get(orbit.parent).unwrap().translation;
         ec.with_children(|parent| {
-            // Planet
+            
+            // Planet Sprites
             parent.spawn_bundle(GeometryBuilder::build_as(
                 &shapes::RegularPolygon {
                 sides: 60,
@@ -151,44 +158,25 @@ pub fn setup_environment_appearance_system(
                 },
                 Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
             ));
+    
+            // Display planet's name and information
+            parent.spawn().insert(PlanetInfoUI)
+            .insert_bundle(SpatialBundle {
+                transform: Transform {
+                    translation: Vec3::new(0., 0., PLANET_ZORDER + 1.),
+                    ..Default::default()
+                },
+                visibility: Visibility { is_visible: false },
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent.spawn_bundle(Text2dBundle {
+                    text: Text::from_section(&planet.name.to_uppercase(), text_style.clone())
+                        .with_alignment(TextAlignment::CENTER),
+                    ..default()
+                });
+            }).insert(PlanetInfoUI);
+
         });
     }
-    // ec
-    //     // UI
-    //     let ui_pos = position + Vec2::new(70.0, 50.0);
-    //     let text_style = TextStyle {
-    //         font: fonts.h2.clone(),
-    //         font_size: 30.0 * scale_factor,
-    //         color: Color::WHITE,
-    //     };
-    //     // Display planet's orbit
-    //     commands.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
-    //         sides: 60,
-    //         feature: shapes::RegularPolygonFeature::Radius(orbit.radius),
-    //         ..shapes::RegularPolygon::default()
-    //         },
-    //         DrawMode::Outlined {
-    //             fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
-    //             outline_mode: StrokeMode::new(Color::rgba(0.1, 1., 1., 1.), 2. * scale_factor),
-    //         },
-    //         Transform { translation: orbit_center, ..Default::default() },
-    //     )).insert(PlanetUI);
-
-    //     // Display planet's name and information
-    //     commands.spawn().insert(PlanetUI)
-    //     .insert_bundle(SpatialBundle {
-    //         transform: Transform {
-    //             translation: Vec3::new(ui_pos.x, ui_pos.y, PLANET_ZORDER + 1.),
-    //             ..Default::default()
-    //         },
-    //         ..Default::default()
-    //     })
-    //     .with_children(|parent| {
-    //         parent.spawn_bundle(Text2dBundle {
-    //             text: Text::from_section(&planet.name.to_uppercase(), text_style.clone())
-    //                 .with_alignment(TextAlignment::CENTER),
-    //             ..default()
-    //         });
-    //     });
-    // });
 }
