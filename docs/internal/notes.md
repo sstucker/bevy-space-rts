@@ -51,3 +51,27 @@ Action objectives
 - Shield generator
 - Thruster
 - Compartment
+
+# Physics
+
+## Capital Ship Drag vs. Distance to Destination:
+
+All bodies, like capital ships, have a velocity and a position.
+
+Ships accelerate in the direction of their targets each frame.
+
+While capital ships accelerate slowly, they can reach high speeds in order to traverse the great distances of the solar system.
+
+Their velocity *v* is scaled by some fraction of its current value to simulate course adjustments and prevent ship speeds from growing without bound.
+$$ v = v_{-1} * d $$
+
+*d* is bound between 0.0 and 1.0 and grows smaller relative to the distance of the ship to its target and the angle between the ship's current heading and its target.
+
+Where *r* is the distance from the ship to its destination and *w* is relative to the dot product between the ship's current heading *A* and the target heading *B*: 
+
+$$ w = \frac{1 - A \cdot B}{2} $$
+
+$$ d\ =\left(\frac{x\left(1.01-w\right)}{r\ }\right)^{\frac{1}{100}} $$
+
+https://www.desmos.com/calculator/yr7xmqzpbh
+

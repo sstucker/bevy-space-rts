@@ -10,6 +10,7 @@ use bevy::time::FixedTimestep;
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
 
+use std::ops::Div;
 use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, f32::consts::PI};
 
 pub mod data;
@@ -39,6 +40,9 @@ pub use ui::*;
 pub mod environment;
 pub use environment::*;
 
+pub mod animation;
+pub use animation::*;
+
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 
@@ -52,8 +56,8 @@ const PLANET_ZORDER: f32 = 10.;
 const PLANET_UI_ZORDER: f32 = 200.;
 const WORLD_ZORDER: f32 = 0.;
 
-const MAP_W: i32 = 8192;
-const MAP_H: i32 = 8192;
+const MAP_W: i32 = 16384;
+const MAP_H: i32 = 16384;
 
 const SPRITE_SCALE: f32 = 0.01;
 
@@ -86,7 +90,7 @@ impl Plugin for UnitPlugin {
             .add_system_set(SystemSet::new()  // Unit updates
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(turret_track_and_fire_system).label(Stage::Kinematics)
-                .with_system(unit_movement_system).label(Stage::Kinematics)
+                .with_system(capital_movement_system).label(Stage::Kinematics)
                 .with_system(primary_satellite_orbit_system)
                 .with_system(secondary_satellite_orbit_system)
                 // .with_system(tertiary_satellite_orbit_system).after(secondary_satellite_orbit_system)
@@ -94,7 +98,7 @@ impl Plugin for UnitPlugin {
                 .with_system(capital_ship_repulsion_system)
                 .with_system(capital_ship_destruction_system)
                 .with_system(projectile_collision_system)
-                .with_system(unit_pathing_system)
+                .with_system(capital_pathing_system)
             )
             .add_system_set(SystemSet::new() // Input 
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
@@ -145,46 +149,92 @@ fn startup_system(
 }
 
 // TODO add these as parameters for various units
-const HEADING_THRESH_BURN: f32 = 0.8;  // Radians
-const DRAG_LATERAL: f32 = 0.975;
+const HEADING_THRESH_BURN: f32 = 0.4;  // Radians
+const DRAG_LATERAL: f32 = 0.95;
 const DRAG_RADIAL: f32 = 0.95;
 const APPROACH_THRESHOLD_REAR: f32 = 100.;
 const APPROACH_THRESHOLD_OMNI: f32 = 5.;
-const THRESH_ARRIVAL: f32 = 5.;
+const THRESH_ARRIVAL: f32 = 50.;
+const APPROACH_THRESH: f32 = 3000.;
 
-fn unit_pathing_system(
+const PRIMARY_ACCELERATION: f32 = 0.01;
+const RADIAL_ACCELERATION: f32 = 0.005;
+
+fn capital_movement_system(
+    mut query: Query<(&mut Transform, &mut Body, &Velocity), Or<(With<Unit>, With<Subunit>)>>,
+    // time: Res<Time>
+) {
+    for (mut transform, mut body, velocity) in query.iter_mut() {
+
+        // Update
+        body.position.x += velocity.dx;
+        body.position.y += velocity.dy;
+        body.position.z = (body.position.z + velocity.dw).rem_euclid(2. * PI);
+
+        transform.translation.x = body.position.x;
+        transform.translation.y = body.position.y;
+        transform.rotation = Quat::from_rotation_z(body.position.z);
+
+    }
+}
+
+fn capital_pathing_system(
     mut query: Query<(&mut UnitPath, &Body, &mut Velocity), With<UnitPath>>,
 ) {
     for (mut path, body, mut velocity ) in query.iter_mut() {
         if !path.path.is_empty() {  // For units with a destination
             let dist_to_dest = (path.path[0] - body.position.truncate()).length();
             let target = (path.path[0] - body.position.truncate()).normalize();
-            let heading = Vec2::new(f32::cos(body.position.z), f32::sin(body.position.z));
-            let cross = target.x * heading.y - target.y * heading.x;
-            let err = 1. - heading.dot(target);
+            let heading = Vec2::new(velocity.dx, velocity.dy).normalize();  // Unit vector of the direction of ship's travel
+            let pointing = Vec2::new(f32::cos(body.position.z), f32::sin(body.position.z));  // Unit vector of ship's direction
+            let cross = target.x * pointing.y - target.y * pointing.x;
+            let mut heading_err = (1. - heading.dot(target)) / 2.;  // The angle between the ship's heading and the target -> [0, 1]
+            if heading_err.is_infinite() {
+                heading_err = 0.0;
+            }
+            let pointing_err = ((1. - pointing.dot(target)) / 2.).min(0.);  // The angle between the ship's nose and the target -> [0, 1]
             velocity.dw += 
             if cross > 0.0 {
-                -0.0006 * err.sqrt().min(1.).max(0.1)
+                -RADIAL_ACCELERATION * pointing_err.max(0.001).powf(1. / 3.)
             } else if cross < 0.0 {
-                0.0006 * err.sqrt().min(1.).max(0.1)
+                RADIAL_ACCELERATION * pointing_err.max(0.001).powf(1. / 3.)
             } else {
                 0.
             };
+            // omni thrusters
+            // velocity.dx += target.x * 0.0003;
+            // velocity.dy += target.y * 0.0003;
             if cross.abs() < HEADING_THRESH_BURN {  // If we are close enough to the right heading to use rear thrusters
                 // TODO get values from thrusters
                 // Rear thrusters
-                velocity.dx += (heading.x * 0.004) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
-                velocity.dy += (heading.y * 0.004) * (dist_to_dest / APPROACH_THRESHOLD_REAR).min(1.);
-                // omni thrusters
-                velocity.dx += target.x * 0.003 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
-                velocity.dy += target.y * 0.003 * (dist_to_dest / APPROACH_THRESHOLD_OMNI).min(1.);
-
+                velocity.dx += (pointing.x * PRIMARY_ACCELERATION);
+                velocity.dy += (pointing.y * PRIMARY_ACCELERATION);
+                // velocity.dy += (heading.y * 0.0001) * (dist_to_dest / APPROACH_THRESHOLD_REAR).max(1.);
             }
-
-            if dist_to_dest < THRESH_ARRIVAL {
+            if dist_to_dest < body.collision_radius {
                 // TODO interface
                 path.path.pop_front();
             }
+            // Apply drag
+            println!("Velocity is {}, {}", velocity.dx, velocity.dy);
+            println!("Heading err is {}", heading_err);
+            // println!("Pointing err is {}", pointing_err);
+            println!("distance is {}", dist_to_dest);
+            println!("Drag is {}, {}",
+                dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.div(64.),
+                dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.div(64.)
+            );
+            // velocity.dx *= (dist_to_dest * (1.001 - heading_err)).div(APPROACH_THRESH).powf(1. / 256.).min(1.).max(0.95);
+            // velocity.dy *= (dist_to_dest * (1.001 - heading_err)).div(APPROACH_THRESH).powf(1. / 256.).min(1.).max(0.95);
+            velocity.dx *= (dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.max(0.0001).div(64.));
+            velocity.dy *= (dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.max(0.0001).div(64.));
+            velocity.dw *= DRAG_RADIAL;
+        }
+        else {
+            // If there is no path, slow unit down
+            velocity.dx *= DRAG_LATERAL;
+            velocity.dy *= DRAG_LATERAL;
+            velocity.dw *= DRAG_RADIAL;
         }
     }
 
@@ -318,46 +368,6 @@ fn turret_track_and_fire_system(
     }
 }
 
-fn explosion_to_spawn_system(
-	mut commands: Commands,
-	query: Query<(Entity, &ExplosionToSpawn)>,
-    texture_server: Res<TextureServer>
-) {
-	for (explosion_spawn_entity, explosion_to_spawn) in query.iter() {
-		// spawn the explosion sprite
-        commands
-            .spawn_bundle(SpriteSheetBundle {
-                texture_atlas: texture_server.get(&String::from("data/fx/explo_a_sheet.png")).typed::<TextureAtlas>(),
-                transform: Transform {
-                    translation: explosion_to_spawn.0,
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .insert(Explosion)
-            .insert(ExplosionTimer::default());
-
-        // despawn the explosionToSpawn
-        commands.entity(explosion_spawn_entity).despawn();
-    }
-}
-
-fn explosion_animation_system(
-	mut commands: Commands,
-	time: Res<Time>,
-	mut query: Query<(Entity, &mut ExplosionTimer, &mut TextureAtlasSprite), With<Explosion>>,
-) {
-	for (entity, mut timer, mut sprite) in query.iter_mut() {
-        timer.0.tick(time.delta());
-		if timer.0.finished() {
-			sprite.index += 1; // move to next sprite cell
-			if sprite.index >= 16 {  // TODO manage fx sheets
-				commands.entity(entity).despawn()
-			}
-		}
-	}
-}
-
 fn capital_ship_destruction_system(
     mut commands: Commands,
     q_capitals: Query<(Entity, &Body, &Hp), With<CapitalShip>>
@@ -474,31 +484,6 @@ fn capital_ship_repulsion_system(
     }
 }
 
-fn unit_movement_system(
-    mut query: Query<(&mut Transform, &mut Body, &mut Velocity), Or<(With<Unit>, With<Subunit>)>>,
-    // time: Res<Time>
-) {
-    for (mut transform, mut body, mut velocity) in query.iter_mut() {
-
-        // Update
-        body.position.x += velocity.dx;
-        body.position.y += velocity.dy;
-        body.position.z = (body.position.z + velocity.dw).rem_euclid(2. * PI);
-
-        // println!("Entity at {}, {}, {}", body.position.x, body.position.y, body.position.z);
-
-        transform.translation.x = body.position.x;
-        transform.translation.y = body.position.y;
-        transform.rotation = Quat::from_rotation_z(body.position.z);
-
-        // Apply drag
-        velocity.dx *= DRAG_LATERAL;
-        velocity.dy *= DRAG_LATERAL;
-        velocity.dw *= DRAG_RADIAL;
-        
-    }
-}
-
 fn projectile_movement_system(
     mut commands: Commands,
     mut query: Query<(Entity, &Projectile, &mut Transform, &mut Body, &Velocity), With<Projectile>>,
@@ -521,41 +506,6 @@ fn projectile_movement_system(
             transform.translation.x = body.position.x;
             transform.translation.y = body.position.y;
             transform.rotation = Quat::from_rotation_z(body.position.z);
-        }
-    }
-}
-
-fn primary_satellite_orbit_system(
-    q_s0: Query<&Transform, Without<PrimarySatellite>>,
-    mut q_s1: Query<(Entity, &mut Transform, &mut Orbit), With<PrimarySatellite>>
-) { 
-    for (entity, mut orbiter_transform, mut orbit) in q_s1.iter_mut() {
-        if let Ok(parent_transform) = q_s0.get(orbit.parent) {
-            let parent_position = parent_transform.translation.truncate();
-            // Move orbiter
-            orbit.w += orbit.rate;
-            orbiter_transform.translation = Vec3::new(
-                parent_position.x + orbit.w.cos() * orbit.radius,
-                parent_position.y + orbit.w.sin() * orbit.radius,
-                orbiter_transform.translation.z
-            )
-        }
-    }
-}
-
-fn secondary_satellite_orbit_system(
-    q_s1: Query<&Transform, (With<PrimarySatellite>, Without<SecondarySatellite>)>,
-    mut q_s2: Query<(Entity, &mut Transform, &mut Orbit), With<SecondarySatellite>>
-) { 
-    for (entity, mut orbiter_transform, mut orbit) in q_s2.iter_mut() {
-        if let Ok(parent_transform) = q_s1.get(orbit.parent) {
-            let parent_position = parent_transform.translation.truncate();
-            orbit.w += orbit.rate;
-            orbiter_transform.translation = Vec3::new(
-                parent_position.x + orbit.w.cos() * orbit.radius,
-                parent_position.y + orbit.w.sin() * orbit.radius,
-                orbiter_transform.translation.z
-            )
         }
     }
 }

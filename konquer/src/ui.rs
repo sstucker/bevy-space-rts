@@ -176,7 +176,7 @@ pub fn ui_planet_system(
                 if planet.class == "Planet" {
                     commands.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
                         sides: 128,
-                        feature: shapes::RegularPolygonFeature::Radius(planet.radius * 5.),
+                        feature: shapes::RegularPolygonFeature::Radius(planet.radius * ORBITAL_RADIUS_RATIO),
                         ..shapes::RegularPolygon::default()
                         },
                         DrawMode::Outlined {
@@ -195,6 +195,7 @@ pub fn ui_planet_system(
                         vis.is_visible = true;
                     }
                 }
+                return
             }
         }
     }

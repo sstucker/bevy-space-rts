@@ -44,7 +44,7 @@ fn test_system(
 	let player2 = konquer::Player::new();
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
-		"Frigate1".to_string(), player1.clone(), Vec3::new(50., 50., 0.)
+		"Frigate1".to_string(), player1.clone(), Vec3::new(5000., 5000., 0.)
 	));
 
 	test_spawner.send(konquer::SpawnUnitEvent::new(
