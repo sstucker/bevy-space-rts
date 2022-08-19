@@ -1,5 +1,5 @@
 use std::{collections::VecDeque, marker::PhantomData, time::Duration};
-use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}, time::Timer};
+use bevy::{prelude::{Component, Entity, Color}, math::{Vec2, Vec3}, ecs::{archetype::Archetypes, component::ComponentId}, time::{Timer, Time}};
 use std::{sync::atomic::{AtomicU8, Ordering}};
 use crate::{Player, SPRITE_SCALE};
 
@@ -14,6 +14,93 @@ pub fn get_components_for_entity<'a>(
         }
     }
     None
+}
+
+
+#[derive(Component)]
+pub struct ParticleSize {
+    pub start: f32,
+    pub end: f32
+}
+
+#[derive(Component)]
+pub struct ParticleColor {
+    pub start: Color,
+    pub end: Color
+}
+
+#[derive(Component)]
+pub struct ParticleVelocity {
+    pub start: Vec2,
+    pub end: Vec2
+}
+
+#[derive(Component)]
+pub struct Particle {
+    pub lifetime: Duration,
+    pub timer: Timer
+}
+
+impl Particle {
+    pub fn new(lifetime: Duration) -> Self {
+        Self {
+            lifetime,
+            timer: Timer::new(lifetime, false)
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct ParticleEmitter {
+    pub period: Option<u64>,
+    pub lifetime: u64,
+    pub batch_size: Option<usize>,
+    pub angle_variance: f32,
+    pub position_variance: f32,
+    pub sprite: String,
+    pub size: Option<ParticleSize>,
+    pub velocity: Option<ParticleVelocity>,
+    pub color: Option<ParticleColor>,
+    timer: Timer
+}
+
+impl ParticleEmitter {
+    pub fn new_thruster_emitter(
+        lifetime: u64,
+        position_variance: f32,
+        angle_variance: f32,
+        sprite: String
+    ) -> Self {
+        Self {
+            period: Some(10),
+            lifetime: lifetime,
+            batch_size: None,
+            angle_variance,
+            position_variance,
+            size: None,
+            velocity: None,
+            color: None,
+            sprite: sprite,
+            timer: Timer::new(Duration::from_millis(100), true)
+        }
+    }
+    pub fn tick(&mut self, delta: Duration) {
+        self.timer.tick(delta);
+    }
+    pub fn ready(&self) -> bool {
+        self.timer.finished()
+    }
+    pub fn set(&mut self, ms: u64) {
+        self.timer = Timer::new(Duration::from_millis(ms), false);
+    }
+    pub fn reset(&mut self) {
+        if let Some(r) = self.period {
+            self.timer = Timer::new(Duration::from_millis(r), false);
+        }
+        else {
+            self.timer = Timer::new(Duration::from_millis(100), false);
+        }
+    }
 }
 
 // An orbiter is any satellite or body with satellites.

@@ -2,7 +2,13 @@
     "name": "thruster1",
     "class": {
         "name": "Thruster",
-        "forward_thrust": 1.0
+        "forward_thrust": 1.0,
+        "particle_lifetime": 1000,
+        "particle_position_variance": 0.1,
+        "particle_angle_variance": 0.1,
+        "particle_velocity_variance": 0.1,
+        "particle_color": [1.0, 1.0, 1.0],
+        "particle_sprite": "data/fx/particle01.png"
     },
     "subclass": "ThrusterThruster",
     "hardpoint_size": 1,

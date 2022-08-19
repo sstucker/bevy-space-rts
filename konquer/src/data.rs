@@ -28,7 +28,13 @@ pub enum SubunitClassData {
         sources: Vec<Vec<f32>>
     },
     Thruster {
-        forward_thrust: f32
+        forward_thrust: f32,
+        particle_lifetime: u64,
+        particle_position_variance: f32,
+        particle_angle_variance: f32,
+        particle_velocity_variance: f32,
+        particle_color: Vec<f32>,
+        particle_sprite: String
     }
 }
 

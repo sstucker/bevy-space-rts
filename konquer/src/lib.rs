@@ -11,6 +11,7 @@ use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
 
 use std::ops::Div;
+use std::time::Duration;
 use std::{sync::atomic::{AtomicU8, Ordering}, fmt::{self}, f32::consts::PI};
 
 pub mod data;
@@ -51,6 +52,7 @@ const DEBUG_GRAPHICS: bool = false;
 // TODO parameterize and IO
 const PROJECTILE_ZORDER: f32 = 150.;
 const UNIT_ZORDER: f32 = 100.;
+const THRUSTER_PARTICLE_ZORDER: f32 = 25.;
 const UI_ZORDER: f32 = 50.;
 const PLANET_ZORDER: f32 = 10.;
 const PLANET_UI_ZORDER: f32 = 200.;
@@ -112,6 +114,8 @@ impl Plugin for UnitPlugin {
                 .with_system(ui_show_hp_system)
                 .with_system(ui_planet_system)
             )
+            .add_system(thruster_particle_emitter_system)
+            .add_system(thruster_particle_system)
             .add_system(explosion_to_spawn_system)
             .add_system(explosion_animation_system)
             // Mechanics
@@ -151,14 +155,14 @@ fn startup_system(
 // TODO add these as parameters for various units
 const HEADING_THRESH_BURN: f32 = 0.4;  // Radians
 const DRAG_LATERAL: f32 = 0.95;
-const DRAG_RADIAL: f32 = 0.95;
+const DRAG_RADIAL: f32 = 0.90;
 const APPROACH_THRESHOLD_REAR: f32 = 100.;
 const APPROACH_THRESHOLD_OMNI: f32 = 5.;
 const THRESH_ARRIVAL: f32 = 50.;
 const APPROACH_THRESH: f32 = 3000.;
 
 const PRIMARY_ACCELERATION: f32 = 0.01;
-const RADIAL_ACCELERATION: f32 = 0.005;
+const RADIAL_ACCELERATION: f32 = 0.006;
 
 fn capital_movement_system(
     mut query: Query<(&mut Transform, &mut Body, &Velocity), Or<(With<Unit>, With<Subunit>)>>,
@@ -216,14 +220,14 @@ fn capital_pathing_system(
                 path.path.pop_front();
             }
             // Apply drag
-            println!("Velocity is {}, {}", velocity.dx, velocity.dy);
-            println!("Heading err is {}", heading_err);
-            // println!("Pointing err is {}", pointing_err);
-            println!("distance is {}", dist_to_dest);
-            println!("Drag is {}, {}",
-                dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.div(64.),
-                dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.div(64.)
-            );
+            // println!("Velocity is {}, {}", velocity.dx, velocity.dy);
+            // println!("Heading err is {}", heading_err);
+            // // println!("Pointing err is {}", pointing_err);
+            // println!("distance is {}", dist_to_dest);
+            // println!("Drag is {}, {}",
+            //     dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.div(64.),
+            //     dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.div(64.)
+            // );
             // velocity.dx *= (dist_to_dest * (1.001 - heading_err)).div(APPROACH_THRESH).powf(1. / 256.).min(1.).max(0.95);
             // velocity.dy *= (dist_to_dest * (1.001 - heading_err)).div(APPROACH_THRESH).powf(1. / 256.).min(1.).max(0.95);
             velocity.dx *= (dist_to_dest.div(APPROACH_THRESH).powf(1. / 256.).min(1.) - heading_err.max(0.0001).div(64.));
@@ -238,6 +242,68 @@ fn capital_pathing_system(
         }
     }
 
+}
+
+
+fn thruster_particle_system(
+    mut commands: Commands,
+    mut q_particles: Query<(Entity, &mut Particle), With<Particle>>,
+    time: Res<Time>
+) {
+    for (e_particle, mut particle) in q_particles.iter_mut() {
+        particle.timer.tick(time.delta());
+        if particle.timer.just_finished() {
+            commands.entity(e_particle).despawn();
+        }
+    }
+}
+
+fn thruster_particle_emitter_system(
+    mut commands: Commands,
+    q_units: Query<(&Children, &Body, &Velocity), (With<Unit>, Without<Thruster>)>,  // TODO display based on THRUST, not velocity
+    mut q_thrusters: Query<(&Thruster, &mut ParticleEmitter, &Body, &Transform), With<Thruster>>,
+    time: Res<Time>,
+    texture_server: Res<TextureServer>
+) {
+    for (children, unit_body, unit_velocity) in q_units.iter() {
+        for child in children {
+            if let Ok((thruster, mut emitter, thruster_body, thruster_transform)) = q_thrusters.get_mut(*child) {
+                emitter.tick(time.delta());
+                // TODO emitter.batch_size
+                if emitter.ready() {
+                    let n: usize = 10;
+                    let emitter_pos = get_absolute_position(thruster_body.position, unit_body.position);
+                    let unit_velocity_mag = Vec2::new(unit_velocity.dx, unit_velocity.dy).length();
+                    for _ in 0..n {
+                        let e_particle = commands.spawn()
+                            .insert(Particle::new(
+                                Duration::from_millis(emitter.lifetime)
+                            )).insert_bundle(SpriteBundle {
+                                texture: texture_server.get(&emitter.sprite).typed::<Image>(),
+                                sprite: Sprite { 
+                                    // color: Color::rgb(emitter.color[0], emitter.color[1], emitter.color[2], emitter.color[3]),
+                                    custom_size: Some(Vec2::new(64. * (unit_velocity_mag * 10.).min(1.), 64.) * SPRITE_SCALE),
+                                    ..Default::default()
+                                },
+                                transform: Transform {
+                                    translation: emitter_pos.truncate().extend(THRUSTER_PARTICLE_ZORDER)
+                                     + Vec3::new(
+                                        emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
+                                        emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
+                                        thruster_transform.translation.z + 1,
+                                    ),
+                                    rotation: Quat::from_rotation_z(emitter_pos.z),
+                                    // rotation: Quat::from_rotation_z(emitter_pos.z + emitter.angle_variance * 2. * rand::random::<f32>() - 1.0),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            }).id();
+                    }
+                    emitter.set(1);
+                }
+            }
+        }
+    }
 }
 
 const TURRET_ON_TARGET_THRESH: f32 = 0.001;  // radians

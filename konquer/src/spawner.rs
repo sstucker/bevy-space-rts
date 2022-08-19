@@ -210,11 +210,16 @@ fn add_subunit(
             ))
             .insert(Velocity { ..Default::default() });
         },
-        SubunitClassData::Thruster { forward_thrust } => {
+        SubunitClassData::Thruster { forward_thrust, particle_lifetime, particle_position_variance, particle_angle_variance, particle_velocity_variance, particle_color, particle_sprite } => {
             ec.insert(Thruster {
                 omnidirectional_thrust: 0.001,
                 unidirectional_thrust: forward_thrust,
-            });
+            }).insert(ParticleEmitter::new_thruster_emitter(
+                particle_lifetime,
+                particle_position_variance,
+                particle_angle_variance,
+                particle_sprite
+            ));
         }
     }
 }
