@@ -1,11 +1,14 @@
 use bevy::{prelude::*, input::mouse::{MouseWheel, MouseScrollUnit}};
 
-use crate::Map;
+use crate::{Map, inputs::MouseOverEvent};
 
 // TODO parameters
-const CAMERA_DRAG: f32 = 0.93;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
+const CAMERA_DRAG: f32 = 0.8;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
 const MIN_ZOOM_SCALE: f32 = 0.04;
-const MAX_ZOOM_SCALE: f32 = 20.;
+const MAX_ZOOM_SCALE: f32 = 30.;
+const LATERAL_MOVEMENT_SENS: f32 = 2.;
+const ZOOM_SENS_LN: f32 = 1. / 16.;
+const ZOOM_SENS_PX: f32 = 1. / 16.;
 
 pub struct KinematicCameraPlugin;
 
@@ -47,48 +50,45 @@ fn camera_startup_system(
 fn camera_move_system(
     kb: Res<Input<KeyCode>>,
     mut scrolls: EventReader<MouseWheel>,
-    mut query: Query<(&mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
+    mut query: Query<(&Camera, &mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
     q_map: Query<&Map, With<Map>>,
+    windows: Res<Windows>,
+    mb: Res<Input<MouseButton>>,
 ) {
-    if let Ok((mut projection, mut cam_transform, mut cam_velocity)) = query.get_single_mut() {
+    if let Ok((camera, mut projection, mut cam_transform, mut cam_velocity)) = query.get_single_mut() {
         let map = q_map.single();
-        
-        // Camera drag
-        cam_velocity.dx *= CAMERA_DRAG;
-        cam_velocity.dy *= CAMERA_DRAG;
-        cam_velocity.dz *= CAMERA_DRAG;
         // Change velocity
         cam_velocity.dx +=
         if kb.pressed(KeyCode::Left) && (cam_transform.translation.x > 0.) {
-			-1.
+			-LATERAL_MOVEMENT_SENS
 		} else if kb.pressed(KeyCode::Right) && (cam_transform.translation.x < map.w as f32) {
-			1.
+			LATERAL_MOVEMENT_SENS
 		} else {
 			0.
 		};
         cam_velocity.dy +=
         if kb.pressed(KeyCode::Up) && (cam_transform.translation.y < map.h as f32) {
-			1.
+			LATERAL_MOVEMENT_SENS
 		} else if kb.pressed(KeyCode::Down) && (cam_transform.translation.y > 0.) {
-			-1.
+			-LATERAL_MOVEMENT_SENS
 		} else {
 			0.
 		};
         for ev in scrolls.iter() {
             match ev.unit {
                 MouseScrollUnit::Line => {
-                    cam_velocity.dz -= ev.y / 100.;
+                    cam_velocity.dz -= ev.y * ZOOM_SENS_LN;
                 }
                 MouseScrollUnit::Pixel => {
-                    cam_velocity.dz += ev.y / 100.;
+                    cam_velocity.dz += ev.y * ZOOM_SENS_PX;
                 }
             }
         }
         cam_velocity.dz +=
         if kb.pressed(KeyCode::PageUp) {
-			0.005
+			0.008
 		} else if kb.pressed(KeyCode::PageDown) {
-			-0.005
+			-0.008
 		} else {
 			0.
 		};
@@ -101,17 +101,30 @@ fn camera_move_system(
         }
         // Zoom
         if cam_velocity.dz.abs() > 0.00001 {
-            let mut log_zoom = projection.scale.ln();
-            log_zoom += cam_velocity.dz;
-            projection.scale = if log_zoom.exp() > MAX_ZOOM_SCALE {
-                MAX_ZOOM_SCALE
-            } else if log_zoom.exp() < MIN_ZOOM_SCALE {
-                MIN_ZOOM_SCALE
+            let window = windows.get_primary().unwrap();
+            let zoom = projection.scale * cam_velocity.dz.exp();
+            let dz = zoom - projection.scale;
+            if zoom > MAX_ZOOM_SCALE {
+                projection.scale = MAX_ZOOM_SCALE
+            } else if zoom < MIN_ZOOM_SCALE {
+                projection.scale = MIN_ZOOM_SCALE
             } else {
-                log_zoom.exp()
+                projection.scale = zoom;
+                if let Some(w_pos) = window.cursor_position() {
+                    let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+                    let ndc: Vec2 = (w_pos / window_size) * 2. - Vec2::ONE;
+                    if cam_velocity.dz < 0. {
+                        let dwin = (window_size / 2.) * ndc * dz;
+                        cam_transform.translation.x -= dwin.x;
+                        cam_transform.translation.y -= dwin.y;
+                    }
+                }
             };
-            // println!("Zoom level is {}", projection.scale);
         }
+        // Camera drag
+        cam_velocity.dx *= CAMERA_DRAG;
+        cam_velocity.dy *= CAMERA_DRAG;
+        cam_velocity.dz *= CAMERA_DRAG;
         // TODO rotation?
     }
 }

@@ -106,8 +106,9 @@ pub fn input_mouse_system(
     q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
     q_map: Query<&Map, With<Map>>,
     mut input_actions: ResMut<InputActions>,
-    mut mouseover_ew: EventWriter<MouseOverEvent>,
+    mut mouseover: ResMut<Events<MouseOverEvent>>,
 ) {
+    mouseover.clear();
     let window = windows.get_primary().unwrap();
     if let Some(w_pos) = window.cursor_position() {  // If cursor is in window
         let map = q_map.single();
@@ -132,7 +133,7 @@ pub fn input_mouse_system(
             m_pos.y = map.h as f32;
         }
 
-        mouseover_ew.send( MouseOverEvent { pos: m_pos } );
+        mouseover.send( MouseOverEvent { pos: m_pos } );
 
         // On click
         if mb.pressed(MouseButton::Left)

@@ -141,11 +141,13 @@ pub fn ui_planet_system(
     q_planets: Query<(&EnvironmentalSatellite, &Children, &Orbit, &Transform), With<EnvironmentalSatellite>>, 
     q_transform: Query<&Transform, Without<PlanetInfoUI>>, 
     q_camera: Query<&OrthographicProjection, With<Camera>>,
-    mut mouseover_ev: EventReader<MouseOverEvent>,
+    mouseover_lel: Local<Events<MouseOverEvent>>,
+    mouseover_events: ResMut<Events<MouseOverEvent>>,
 ) {
+    let mut mouseover_el = mouseover_lel.get_reader();
     let scale_factor = q_camera.single().scale;
     // println!("Scale factor is {}", scale_factor);
-    if !mouseover_ev.is_empty() {
+    if !mouseover_el.is_empty(&mouseover_events) {
         for entity in q_orbit_ui.iter() {
             commands.entity(entity).despawn_recursive();
         }
@@ -153,7 +155,7 @@ pub fn ui_planet_system(
             vis.is_visible = false;
         }
     }
-    for event in mouseover_ev.iter() {
+    for event in mouseover_el.iter(&mouseover_events) {
         for (planet, children, orbit, planet_transform) in q_planets.iter() {
             if event.pos.distance(planet_transform.translation.truncate()) < planet.radius {
                 let mut orbit_center = q_transform.get(orbit.parent).unwrap().translation;
