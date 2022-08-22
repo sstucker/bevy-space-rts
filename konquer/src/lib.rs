@@ -290,7 +290,7 @@ fn thruster_particle_emitter_system(
                                      + Vec3::new(
                                         emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
                                         emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
-                                        thruster_transform.translation.z + 1,
+                                        thruster_transform.translation.z + 1.,
                                     ),
                                     rotation: Quat::from_rotation_z(emitter_pos.z),
                                     // rotation: Quat::from_rotation_z(emitter_pos.z + emitter.angle_variance * 2. * rand::random::<f32>() - 1.0),

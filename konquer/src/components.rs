@@ -52,9 +52,9 @@ impl Particle {
 
 #[derive(Component)]
 pub struct ParticleEmitter {
-    pub period: Option<u64>,
+    pub period: u64,
     pub lifetime: u64,
-    pub batch_size: Option<usize>,
+    pub batch_size: usize,
     pub angle_variance: f32,
     pub position_variance: f32,
     pub sprite: String,
@@ -65,6 +65,7 @@ pub struct ParticleEmitter {
 }
 
 impl ParticleEmitter {
+    // Default values for the thruster emitter
     pub fn new_thruster_emitter(
         lifetime: u64,
         position_variance: f32,
@@ -72,9 +73,9 @@ impl ParticleEmitter {
         sprite: String
     ) -> Self {
         Self {
-            period: Some(10),
+            period: 10,
             lifetime: lifetime,
-            batch_size: None,
+            batch_size: 1,
             angle_variance,
             position_variance,
             size: None,
@@ -94,12 +95,7 @@ impl ParticleEmitter {
         self.timer = Timer::new(Duration::from_millis(ms), false);
     }
     pub fn reset(&mut self) {
-        if let Some(r) = self.period {
-            self.timer = Timer::new(Duration::from_millis(r), false);
-        }
-        else {
-            self.timer = Timer::new(Duration::from_millis(100), false);
-        }
+        self.timer = Timer::new(Duration::from_millis(self.period), false);
     }
 }
 

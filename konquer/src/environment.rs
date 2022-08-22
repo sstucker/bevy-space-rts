@@ -9,7 +9,7 @@ const SOLAR_RADIUS: f32 = 400.;
 const N_PRIMARY_SATELLITES: i32 = 5;
 const MAX_SECONDARY_SATELLITES: i32 = 3;
 const SECONDARY_RADII: f32 = 450.;  // TODO randomize
-const ORBITAL_RATE: f32 = 0.00001;
+const ORBITAL_RATE: f32 = 0.0001;
 const ORBITAL_MARGIN: f32 = 200.;  // The distance between the furthest satellite and the edge of the map
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
 pub const ORBITAL_RADIUS_RATIO: f32 = 8.;  // The ratio of a Planet's radius to its inertial and territorial zone
@@ -55,8 +55,8 @@ pub fn setup_environment_system(
     for i in 0..N_PRIMARY_SATELLITES {
         radii.push((i + 1) as f32 * sat_size + (2. * ORBITAL_MARGIN));
     }
-    
     for (i, orbital_radius) in radii.iter().enumerate() {
+        let n_moons: i32 = rand::thread_rng().gen_range(0..MAX_SECONDARY_SATELLITES);
         println!("Generating major satellite at orbital radius {}", orbital_radius);
         let r = rand::thread_rng().gen_range(0.5..1.0) * sat_size / ORBITAL_RADIUS_RATIO;
         let planet_name = PLANET_NAMES[i];
@@ -90,7 +90,6 @@ pub fn setup_environment_system(
             ..Default::default()      
         });
         let e_planet = ec_planet.id();
-        let n_moons: i32 = rand::thread_rng().gen_range(0..MAX_SECONDARY_SATELLITES);
         if n_moons > 0 {
             let moon_r = (r - (r / ORBITAL_RADIUS_RATIO)) / n_moons as f32;
             for j in 0..n_moons {
@@ -98,7 +97,7 @@ pub fn setup_environment_system(
                 let s2_r = rand::thread_rng().gen_range(0.7..1.0) * moon_r;
                 let s2_orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
                 let s2_orbital_rate = rand::thread_rng().gen_range(4.0..5.0) * ORBITAL_RATE * 10.;
-                let s2_orbital_radius = (j + 1) as f32 * moon_r;
+                let s2_orbital_radius = (j + 1) as f32 * moon_r * 6.;
                 let mut s2_position = position.clone();
                 s2_position.x += s2_orbital_angle.cos() * s2_orbital_radius;
                 s2_position.y += s2_orbital_angle.sin() * s2_orbital_radius;
