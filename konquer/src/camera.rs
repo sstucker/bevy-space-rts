@@ -7,7 +7,7 @@ use crate::{Map, inputs::MouseOverEvent, Background, BACKGROUND_ZORDER};
 // TODO parameters
 const CAMERA_DRAG: f32 = 0.8;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
 const MIN_ZOOM_SCALE: f32 = 0.04;
-const MAX_ZOOM_SCALE: f32 = 18.;
+const MAX_ZOOM_SCALE: f32 = 50.;
 const LATERAL_MOVEMENT_SENS: f32 = 2.;
 const ZOOM_SENS_LN: f32 = 1. / 16.;
 const ZOOM_SENS_PX: f32 = 1. / 16.;

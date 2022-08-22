@@ -126,7 +126,9 @@ pub struct Sun;
 
 // Planets
 #[derive(Component, Clone, Copy)]
-pub struct PrimarySatellite;
+pub struct PrimarySatellite {
+    pub gravity_radius: f32
+}
 
 // Moons
 #[derive(Component, Clone, Copy)]

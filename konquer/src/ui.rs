@@ -137,7 +137,8 @@ pub fn ui_planet_system(
     mut commands: Commands,
     q_orbit_ui: Query<Entity, With<PlanetOrbitUI>>, 
     mut q_info_ui: Query<(&mut Visibility, &mut Transform), (With<PlanetInfoUI>, Without<EnvironmentalSatellite>)>, 
-    q_planets: Query<(&EnvironmentalSatellite, &Children, &Orbit, &Transform), With<EnvironmentalSatellite>>, 
+    q_planets: Query<(Entity, &EnvironmentalSatellite, &Children, &Orbit, &Transform), With<EnvironmentalSatellite>>, 
+    q_primary_sat: Query<&PrimarySatellite>, 
     q_transform: Query<&Transform, Without<PlanetInfoUI>>, 
     q_camera: Query<&OrthographicProjection, With<Camera>>,
     mouseover_lel: Local<Events<MouseOverEvent>>,
@@ -155,7 +156,7 @@ pub fn ui_planet_system(
         }
     }
     for event in mouseover_el.iter(&mouseover_events) {
-        for (planet, children, orbit, planet_transform) in q_planets.iter() {
+        for (e_planet, planet, children, orbit, planet_transform) in q_planets.iter() {
             if event.pos.distance(planet_transform.translation.truncate()) < planet.radius {
                 let mut orbit_center = q_transform.get(orbit.parent).unwrap().translation;
                 orbit_center.z = WORLD_ZORDER + 1.;
@@ -174,19 +175,20 @@ pub fn ui_planet_system(
                 )).insert(PlanetOrbitUI);
 
                 // Display planet's orbital radius
-                if planet.class == "Planet" {
+                if let Ok(primary_sat) = q_primary_sat.get(e_planet) {
                     commands.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
                         sides: 128,
-                        feature: shapes::RegularPolygonFeature::Radius(planet.radius * ORBITAL_RADIUS_RATIO),
+                        feature: shapes::RegularPolygonFeature::Radius(primary_sat.gravity_radius),
                         ..shapes::RegularPolygon::default()
                         },
                         DrawMode::Outlined {
-                            fill_mode: FillMode::color(Color::rgba(0.1, 0.1, 0.1, 0.5)),
+                            fill_mode: FillMode::color(Color::rgba(0.1, 0.1, 0.1, 0.9)),
                             outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
                         },
                         Transform { translation: planet_transform.translation.truncate().extend(WORLD_ZORDER + 2.), ..Default::default() },
                     )).insert(PlanetOrbitUI);
                 }
+
 
                 // Unhide the info
                 for child in children.iter() {

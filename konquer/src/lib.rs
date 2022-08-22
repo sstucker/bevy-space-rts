@@ -51,7 +51,6 @@ const DEBUG_GRAPHICS: bool = true;
 
 // TODO parameterize and IO
 const UI_ABOVE_ZORDER: f32 = 500.;
-const PLANET_UI_ZORDER: f32 = 200.;
 const PROJECTILE_ZORDER: f32 = 150.;
 const UNIT_ZORDER: f32 = 100.;
 const THRUSTER_PARTICLE_ZORDER: f32 = 25.;
@@ -60,8 +59,8 @@ const UI_BENEATH_ZORDER: f32 = 40.;
 const WORLD_ZORDER: f32 = 20.;
 const BACKGROUND_ZORDER: f32 = 0.;
 
-const MAP_W: i32 = 16384;
-const MAP_H: i32 = 16384;
+const MAP_W: i32 = 2 * 16384;
+const MAP_H: i32 = 2 * 16384;
 
 const SPRITE_SCALE: f32 = 0.01;
 
@@ -150,16 +149,16 @@ fn startup_system(
 }
 
 // TODO add these as parameters for various units
-const HEADING_THRESH_BURN: f32 = 0.4;  // Radians
+const HEADING_THRESH_BURN: f32 = 0.5;  // Radians
 const DRAG_LATERAL: f32 = 0.95;
-const DRAG_RADIAL: f32 = 0.90;
+const DRAG_RADIAL: f32 = 0.96;
 const APPROACH_THRESHOLD_REAR: f32 = 100.;
 const APPROACH_THRESHOLD_OMNI: f32 = 5.;
 const THRESH_ARRIVAL: f32 = 50.;
 const APPROACH_THRESH: f32 = 3000.;
 
 const PRIMARY_ACCELERATION: f32 = 0.01;
-const RADIAL_ACCELERATION: f32 = 0.006;
+const RADIAL_ACCELERATION: f32 = 0.008;
 
 fn capital_movement_system(
     mut query: Query<(&mut Transform, &mut Body, &Velocity), Or<(With<Unit>, With<Subunit>)>>,
@@ -269,7 +268,10 @@ fn thruster_particle_emitter_system(
                 // TODO emitter.batch_size
                 if emitter.ready() {
                     let n: usize = 10;
-                    let emitter_pos = get_absolute_position(thruster_body.position, unit_body.position);
+                    let emitter_pos = get_absolute_position(
+                        thruster_body.position,
+                        unit_body.position
+                    );
                     let unit_velocity_mag = Vec2::new(unit_velocity.dx, unit_velocity.dy).length();
                     for _ in 0..n {
                         let e_particle = commands.spawn()
@@ -285,11 +287,11 @@ fn thruster_particle_emitter_system(
                                 transform: Transform {
                                     translation: emitter_pos.truncate().extend(0.)
                                      + Vec3::new(
-                                        emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
-                                        emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
-                                        unit_transform.translation.z + thruster_transform.translation.z,
+                                        emitter.position_variance * 2. * (rand::random::<f32>() - 0.5),
+                                        emitter.position_variance * 2. * (rand::random::<f32>() - 0.5),
+                                        unit_transform.translation.z + thruster_transform.translation.z + 1.,  // Particles are always emitted from a thruster's first layer
                                     ),
-                                    rotation: Quat::from_rotation_z(emitter_pos.z),
+                                    // rotation: Quat::from_rotation_z(emitter_pos.z),
                                     // rotation: Quat::from_rotation_z(emitter_pos.z + emitter.angle_variance * 2. * rand::random::<f32>() - 1.0),
                                     ..Default::default()
                                 },
@@ -399,7 +401,7 @@ fn turret_track_and_fire_system(
                         };
                         for source in turret.get_sources().iter() {
                             let source_pos =
-                                get_absolute_position(source.extend(0.), abs_turret_pos);
+                                get_absolute_position(source.extend(0.) * SPRITE_SCALE, abs_turret_pos);
                             fire_projectile(source_pos);
                         }
                     }
@@ -408,30 +410,34 @@ fn turret_track_and_fire_system(
 
                 // DEBUG GRAPHICS
                 if DEBUG_GRAPHICS {
-                    // let mut path_builder = PathBuilder::new();
-                    // path_builder.move_to(abs_turret_pos.truncate());
-                    // path_builder.line_to(target_body.position.truncate());
-                    // let line = path_builder.build();
-                    // commands.spawn_bundle(GeometryBuilder::build_as(
-                    //     &line,
-                    //     DrawMode::Stroke(StrokeMode::new(
-                    //         Color::rgba(1., 0., 0., 0.2),
-                    //         1.  // Always draw the same thickness of UI elements regardless of zoom
-                    //     )),
-                    //     Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER), ..Default::default() },
-                    // )).insert( DebugTurretTargetLine );                    
-                    // let mut path_builder = PathBuilder::new();
-                    // path_builder.move_to(abs_turret_pos.truncate());
-                    // path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
-                    // let line = path_builder.build();
-                    // commands.spawn_bundle(GeometryBuilder::build_as(
-                    //     &line,
-                    //     DrawMode::Stroke(StrokeMode::new(
-                    //         Color::rgba(0., 1., 0., 0.2),
-                    //         3.  // Always draw the same thickness of UI elements regardless of zoom
-                    //     )),
-                    //     Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 1.), ..Default::default() },
-                    // )).insert( DebugTurretTargetLine );
+                    for source in turret.get_sources().iter() {
+                        let source_pos =
+                            get_absolute_position(source.extend(0.) * SPRITE_SCALE, abs_turret_pos);
+                        let mut path_builder = PathBuilder::new();
+                        path_builder.move_to(source_pos.truncate());
+                        path_builder.line_to(source_pos.truncate() + heading * 50.);
+                        let line = path_builder.build();
+                        commands.spawn_bundle(GeometryBuilder::build_as(
+                            &line,
+                            DrawMode::Stroke(StrokeMode::new(
+                                Color::rgba(1., 1., 1., 0.8),
+                                0.5  // Always draw the same thickness of UI elements regardless of zoom
+                            )),
+                            Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 1.), ..Default::default() },
+                        )).insert( DebugTurretTargetLine );
+                    }
+                    let mut path_builder = PathBuilder::new();
+                    path_builder.move_to(abs_turret_pos.truncate());
+                    path_builder.line_to(target_body.position.truncate());
+                    let line = path_builder.build();
+                    commands.spawn_bundle(GeometryBuilder::build_as(
+                        &line,
+                        DrawMode::Stroke(StrokeMode::new(
+                            Color::rgba(1., 0., 0., 0.7),
+                            1.  // Always draw the same thickness of UI elements regardless of zoom
+                        )),
+                        Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER), ..Default::default() },
+                    )).insert( DebugTurretTargetLine );                    
                 }
             }
             else {
@@ -585,6 +591,13 @@ fn projectile_movement_system(
             transform.rotation = Quat::from_rotation_z(body.position.z);
         }
     }
+}
+
+pub fn rotate_vector(p: Vec2, w: f32) -> Vec2 {
+    Vec2::new(
+        p.x * w.cos() - p.y * w.sin(),
+        p.x * w.sin() + p.y * w.cos()
+    )
 }
 
 pub fn get_absolute_position(subunit_position: Vec3, parent_position: Vec3) -> Vec3 {
