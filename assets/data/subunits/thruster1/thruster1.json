@@ -16,6 +16,6 @@
     "sprites": [{
         "texture": "data/subunits/thruster1/thruster1.png",
         "size": [102.0, 100.0],
-        "z_order": 0
+        "z_order": 2
     }]
 }

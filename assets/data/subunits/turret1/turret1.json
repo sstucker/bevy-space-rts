@@ -10,8 +10,8 @@
         "projectile": "bp1",
         "firing_pattern": "alternating",
         "sources": [
-            [6.0, 3.5],
-            [6.0, -3.5]
+            [96.0, 68.0],
+            [96.0, -68.0]
         ]
     },
     "subclass": "Ballistic",

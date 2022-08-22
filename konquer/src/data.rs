@@ -34,7 +34,7 @@ pub enum SubunitClassData {
         particle_angle_variance: f32,
         particle_velocity_variance: f32,
         particle_color: Vec<f32>,
-        particle_sprite: String
+        particle_sprite: String,
     }
 }
 
