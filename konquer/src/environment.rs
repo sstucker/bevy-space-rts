@@ -15,6 +15,7 @@ const SECONDARY_RADII: f32 = 450.;  // TODO randomize
 const ORBITAL_RATE: f32 = 0.001;
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
 pub const ORBITAL_RADIUS_RATIO: f32 = 15.;  // The ratio of a Planet's radius to its inertial and territorial zone
+pub const MOON_TO_PLANET_RATIO: f32 = 2.;  // The ratio of a Planet's size to the maximum size of its moons
 
 pub const PLANET_ILLUM_SPRITE: &str = "data/environment/planet_lighting_1.png";
 
@@ -66,8 +67,7 @@ pub fn environment_startup_system(
     }
     // TODO alter the orbital radii such that not all planet zones are the same size and distance from the sun but still sum to `space_radius`
     for (i, (gravity_radius, orbital_radius)) in zip(gravity_radii.iter(), orbital_radii.iter()).enumerate() {
-        // let n_moons: i32 = rand::thread_rng().gen_range(0..MAX_SECONDARY_SATELLITES);
-        let n_moons: i32 = 0;
+        let n_moons: i32 = rand::thread_rng().gen_range(0..MAX_SECONDARY_SATELLITES);
         println!("Generating major satellite at orbital radius {}", orbital_radius);
         let r = rand::thread_rng().gen_range(0.5..1.0) * planet_gravitational_diameter / ORBITAL_RADIUS_RATIO;
         let planet_name = PLANET_NAMES[i];
@@ -105,7 +105,7 @@ pub fn environment_startup_system(
         let e_planet = ec_planet.id();
         if n_moons > 0 {
             let lunar_diameter = (gravity_radius - r) / n_moons as f32;
-            let moon_size = (gravity_radius / (2. * n_moons as f32)) * 0.6;
+            let moon_size = r * 1. / MOON_TO_PLANET_RATIO;
             for j in 0..n_moons {
                 let s2_orbital_radius = j as f32 * lunar_diameter + r + lunar_diameter / 2.;
                 let s2_r = rand::thread_rng().gen_range(0.7..1.0) * moon_size;
