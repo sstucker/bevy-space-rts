@@ -87,6 +87,7 @@ impl Plugin for UnitPlugin {
             .add_event::<MouseOverEvent>()
             .add_startup_system(startup_system)
             .add_startup_system_to_stage(StartupStage::Startup, setup_environment_system)
+            .add_startup_system_to_stage(StartupStage::PostStartup, setup_background_system)
             .add_startup_system_to_stage(StartupStage::PostStartup, setup_environment_appearance_system)
             .add_plugin(KinematicCameraPlugin)
             .add_system_set(SystemSet::new()  // Unit updates

@@ -217,3 +217,19 @@ pub fn secondary_satellite_orbit_system(
         }
     }
 }
+
+pub fn setup_background_system(
+    mut commands: Commands,
+	texture_server: Res
+) {
+    'texture: for (i, entry) in glob::glob(&("data/bg/*.png")).expect("Fatal: Invalid pattern").enumerate() {
+        match entry {
+            Ok(path) => {
+                if let Some(s) = path.to_str() {
+                    let path_s = String::from(s).replace("\"", "").replace("assets\\", "");
+                    println!("Adding background layer {}: {}", i, path_s);
+                }
+            },
+            Err(e) => eprintln!("{:?}", e)
+        }
+}
