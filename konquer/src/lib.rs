@@ -60,8 +60,8 @@ const UI_BENEATH_ZORDER: f32 = 40.;
 const WORLD_ZORDER: f32 = 20.;
 const BACKGROUND_ZORDER: f32 = 0.;
 
-const MAP_W: i32 = 16384;
-const MAP_H: i32 = 16384;
+const MAP_W: i32 = 2 * 16384;
+const MAP_H: i32 = 2 * 16384;
 
 const SPRITE_SCALE: f32 = 0.01;
 

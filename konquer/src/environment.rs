@@ -1,3 +1,5 @@
+use std::iter::zip;
+
 use bevy::{prelude::*, ecs::system::EntityCommands};
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
@@ -6,13 +8,13 @@ use crate::*;
 
 // TODO generative
 const SOLAR_RADIUS: f32 = 400.;
+const ORBITAL_MARGIN: f32 = 300.;  // The distance between the innermost satellite and the sun as well as the distance between the furthest satellite and the edge of the map
 const N_PRIMARY_SATELLITES: i32 = 5;
 const MAX_SECONDARY_SATELLITES: i32 = 3;
 const SECONDARY_RADII: f32 = 450.;  // TODO randomize
-const ORBITAL_RATE: f32 = 0.0001;
-const ORBITAL_MARGIN: f32 = 200.;  // The distance between the furthest satellite and the edge of the map
+const ORBITAL_RATE: f32 = 0.001;
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
-pub const ORBITAL_RADIUS_RATIO: f32 = 8.;  // The ratio of a Planet's radius to its inertial and territorial zone
+pub const ORBITAL_RADIUS_RATIO: f32 = 16.;  // The ratio of a Planet's radius to its inertial and territorial zone
 
 pub const PLANET_ILLUM_SPRITE: &str = "data/environment/planet_lighting_1.png";
 
@@ -53,18 +55,26 @@ pub fn environment_startup_system(
 
     // Insert satellites
     let map_radius = (MAP_H as f32 / 2.).min(MAP_W as f32 / 2.);
-    let sat_size = (map_radius - ORBITAL_MARGIN * 3.) / (2. * N_PRIMARY_SATELLITES as f32);
-    let mut radii: Vec<f32> = Vec::new();
+    let space_radius = map_radius - SOLAR_RADIUS - 2. * ORBITAL_MARGIN;
+    let planet_gravitational_diameter = space_radius / N_PRIMARY_SATELLITES as f32;
+    let mut orbital_radii: Vec<f32> = Vec::new();  // Orbital radii of the planets
+    let mut gravity_radii: Vec<f32> = Vec::new();  // Gravitational radii of the planets
     for i in 0..N_PRIMARY_SATELLITES {
-        radii.push((i + 1) as f32 * sat_size + (2. * ORBITAL_MARGIN));
+        let g_rad = planet_gravitational_diameter / 2.;
+        orbital_radii.push(i as f32 * planet_gravitational_diameter + SOLAR_RADIUS + ORBITAL_MARGIN + g_rad);
+        gravity_radii.push(g_rad);
     }
-    for (i, orbital_radius) in radii.iter().enumerate() {
-        let n_moons: i32 = rand::thread_rng().gen_range(0..MAX_SECONDARY_SATELLITES);
+    // TODO alter the orbital radii such that not all planet zones are the same size and distance from the sun but still sum to `space_radius`
+    for (i, (gravity_radius, orbital_radius)) in zip(gravity_radii.iter(), orbital_radii.iter()).enumerate() {
+        // let n_moons: i32 = rand::thread_rng().gen_range(0..MAX_SECONDARY_SATELLITES);
+        let n_moons: i32 = 0;
         println!("Generating major satellite at orbital radius {}", orbital_radius);
-        let r = rand::thread_rng().gen_range(0.5..1.0) * sat_size / ORBITAL_RADIUS_RATIO;
+        let r = rand::thread_rng().gen_range(0.5..1.0) * planet_gravitational_diameter / ORBITAL_RADIUS_RATIO;
         let planet_name = PLANET_NAMES[i];
-        let orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
-        let orbital_rate = rand::thread_rng().gen_range(1.0..3.0) * ORBITAL_RATE;
+        // let orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
+        // let orbital_rate = rand::thread_rng().gen_range(1.0..3.0) * ORBITAL_RATE;
+        let orbital_angle: f32 = 0.;
+        let orbital_rate: f32 = 0.;
         let position = Vec3::new(
             MAP_W as f32 / 2. + orbital_angle.cos() * orbital_radius,
             MAP_H as f32 / 2. + orbital_angle.sin() * orbital_radius,
@@ -72,7 +82,7 @@ pub fn environment_startup_system(
         );
         let mut ec_planet = commands.spawn();
         ec_planet
-        .insert(PrimarySatellite)
+        .insert(PrimarySatellite { gravity_radius: *gravity_radius } )
         .insert(Orbiter)
         .insert(EnvironmentalSatellite {
             name: planet_name.to_string(),
@@ -94,13 +104,15 @@ pub fn environment_startup_system(
         });
         let e_planet = ec_planet.id();
         if n_moons > 0 {
-            let moon_r = (r - (r / ORBITAL_RADIUS_RATIO)) / n_moons as f32;
+            let lunar_diameter = (gravity_radius - r) / n_moons as f32;
+            let moon_size = (gravity_radius / (2. * n_moons as f32)) * 0.6;
             for j in 0..n_moons {
-            // for i in 0..2 {
-                let s2_r = rand::thread_rng().gen_range(0.7..1.0) * moon_r;
-                let s2_orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
-                let s2_orbital_rate = rand::thread_rng().gen_range(4.0..5.0) * ORBITAL_RATE * 10.;
-                let s2_orbital_radius = (j + 1) as f32 * moon_r * 6.;
+                let s2_orbital_radius = j as f32 * lunar_diameter + r + lunar_diameter / 2.;
+                let s2_r = rand::thread_rng().gen_range(0.7..1.0) * moon_size;
+                // let s2_orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
+                // let s2_orbital_rate = rand::thread_rng().gen_range(4.0..5.0) * ORBITAL_RATE * 10.;
+                let s2_orbital_angle: f32 = 0.;
+                let s2_orbital_rate: f32 = 0.;
                 let mut s2_position = position.clone();
                 s2_position.x += s2_orbital_angle.cos() * s2_orbital_radius;
                 s2_position.y += s2_orbital_angle.sin() * s2_orbital_radius;
