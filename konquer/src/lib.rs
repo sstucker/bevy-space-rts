@@ -102,19 +102,16 @@ impl Plugin for UnitPlugin {
                 .with_system(capital_ship_destruction_system)
                 .with_system(projectile_collision_system)
                 .with_system(capital_pathing_system)
-            )
-            .add_system_set(SystemSet::new() // Input 
-                .with_run_criteria(FixedTimestep::step(1. / 60.))
-                .with_system(inputs::input_mouse_system)
-                .with_system(camera_move_system)
-            )
-            // Graphics
-            .add_system_set(SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(1. / 60.))
+                // Graphics
                 .with_system(ui_highlight_selected_system)
                 .with_system(ui_show_path_system)
                 .with_system(ui_show_hp_system)
                 .with_system(ui_planet_system)
+            )
+            .add_system_set(SystemSet::new() // Input 
+                .with_run_criteria(FixedTimestep::step(1. / 30.))
+                .with_system(inputs::input_mouse_system)
+                .with_system(camera_move_system)
             )
             .add_system(thruster_particle_emitter_system)
             .add_system(thruster_particle_system)
@@ -260,12 +257,12 @@ fn thruster_particle_system(
 
 fn thruster_particle_emitter_system(
     mut commands: Commands,
-    q_units: Query<(&Children, &Body, &Velocity), (With<Unit>, Without<Thruster>)>,  // TODO display based on THRUST, not velocity
+    q_units: Query<(&Children, &Body, &Transform, &Velocity), (With<Unit>, Without<Thruster>)>,  // TODO display based on THRUST, not velocity
     mut q_thrusters: Query<(&Thruster, &mut ParticleEmitter, &Body, &Transform), With<Thruster>>,
     time: Res<Time>,
     texture_server: Res<TextureServer>
 ) {
-    for (children, unit_body, unit_velocity) in q_units.iter() {
+    for (children, unit_body, unit_transform, unit_velocity) in q_units.iter() {
         for child in children {
             if let Ok((thruster, mut emitter, thruster_body, thruster_transform)) = q_thrusters.get_mut(*child) {
                 emitter.tick(time.delta());
@@ -286,11 +283,11 @@ fn thruster_particle_emitter_system(
                                     ..Default::default()
                                 },
                                 transform: Transform {
-                                    translation: emitter_pos.truncate().extend(THRUSTER_PARTICLE_ZORDER)
+                                    translation: emitter_pos.truncate().extend(0.)
                                      + Vec3::new(
                                         emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
                                         emitter.position_variance * 2. * rand::random::<f32>() - 1.0,
-                                        thruster_transform.translation.z + 1.,
+                                        unit_transform.translation.z + thruster_transform.translation.z,
                                     ),
                                     rotation: Quat::from_rotation_z(emitter_pos.z),
                                     // rotation: Quat::from_rotation_z(emitter_pos.z + emitter.angle_variance * 2. * rand::random::<f32>() - 1.0),
