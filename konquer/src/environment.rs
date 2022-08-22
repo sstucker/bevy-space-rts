@@ -14,9 +14,12 @@ const ORBITAL_MARGIN: f32 = 200.;  // The distance between the furthest satellit
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
 pub const ORBITAL_RADIUS_RATIO: f32 = 8.;  // The ratio of a Planet's radius to its inertial and territorial zone
 
+pub const PLANET_ILLUM_SPRITE: &str = "data/environment/planet_lighting_1.png";
+
+
 // TODO fix dimensions
 // TODO more planet mechanics
-pub fn setup_environment_system(
+pub fn environment_startup_system(
     mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	texture_server: Res<TextureServer>,
@@ -130,14 +133,15 @@ pub fn setup_environment_system(
 }
 
 // Inserts graphical children
-pub fn setup_environment_appearance_system(
+pub fn environment_appearance_startup_system(
     mut commands: Commands,
+    texture_server: Res<TextureServer>,
     query: Query<(Entity, &EnvironmentalSatellite, &Transform, &Orbit), With<EnvironmentalSatellite>>,
     q_transform: Query<&Transform>,
     fonts: Res<Fonts>
 ) {
     for (entity, planet, planet_transform, orbit) in query.iter() {
-        let r_color = [Color::SALMON, Color::PURPLE, Color::AQUAMARINE, Color::BEIGE, Color::DARK_GREEN, Color::PINK][rand::thread_rng().gen_range(0..5)];
+        let r_color = [Color::MAROON, Color::DARK_GREEN, Color::MIDNIGHT_BLUE, Color::DARK_GREEN, Color::NAVY][rand::thread_rng().gen_range(0..5)];
         let mut ec = commands.entity(entity);
         let text_style = TextStyle {
             font: fonts.h2.clone(),
@@ -160,7 +164,27 @@ pub fn setup_environment_appearance_system(
                 },
                 Transform { translation: Vec3::new(0., 0., 0.), ..Default::default() },
             ));
-    
+            
+            // Solar illumination
+            match planet.class.as_str() {
+                "Planet" => {
+                    parent.spawn_bundle(SpriteBundle {
+                        texture: texture_server.get(&PLANET_ILLUM_SPRITE.to_string()).typed::<Image>(),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::ONE * planet.radius * 2.),
+                            ..Default::default()
+                        },
+                        transform: Transform {
+                            translation: Vec3::new(0., 0., 1.),
+                            rotation: Quat::from_rotation_z(orbit.w),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }).insert(PlanetIllumination);
+                },
+                _ => ()
+            }
+
             // Display planet's name and information
             parent.spawn().insert(PlanetInfoUI)
             .insert_bundle(SpatialBundle {
@@ -184,10 +208,11 @@ pub fn setup_environment_appearance_system(
 }
 
 pub fn primary_satellite_orbit_system(
-    q_s0: Query<&Transform, Without<PrimarySatellite>>,
-    mut q_s1: Query<(Entity, &mut Transform, &mut Orbit), With<PrimarySatellite>>
+    q_s0: Query<&Transform, (Without<PrimarySatellite>, Without<PlanetIllumination>)>,
+    mut q_s1: Query<(Entity, &Children, &mut Transform, &mut Orbit), With<PrimarySatellite>>,
+    mut q_illum: Query<&mut Transform, (With<PlanetIllumination>, Without<PrimarySatellite>)>
 ) { 
-    for (entity, mut orbiter_transform, mut orbit) in q_s1.iter_mut() {
+    for (entity, children, mut orbiter_transform, mut orbit) in q_s1.iter_mut() {
         if let Ok(parent_transform) = q_s0.get(orbit.parent) {
             let parent_position = parent_transform.translation.truncate();
             // Move orbiter
@@ -197,6 +222,11 @@ pub fn primary_satellite_orbit_system(
                 parent_position.y + orbit.w.sin() * orbit.radius,
                 orbiter_transform.translation.z
             )
+        }
+        for child in children.iter() {
+            if let Ok(mut illum_transform) = q_illum.get_mut(*child) {
+                illum_transform.rotation = Quat::from_rotation_z(orbit.w - PI);
+            }
         }
     }
 }
@@ -218,18 +248,36 @@ pub fn secondary_satellite_orbit_system(
     }
 }
 
-pub fn setup_background_system(
+const PARALLAX_SCALE_FACTOR: f32 = 0.2;
+
+pub fn background_startup_system(
     mut commands: Commands,
-	texture_server: Res
+	texture_server: Res<TextureServer>,
+    windows: Res<Windows>
 ) {
-    'texture: for (i, entry) in glob::glob(&("data/bg/*.png")).expect("Fatal: Invalid pattern").enumerate() {
+    let window = windows.get_primary().unwrap();
+    let window_size = Vec2::new(window.width(), window.height());
+    'texture: for (i, entry) in glob::glob(&("**/bg/*.png")).expect("Fatal: Invalid pattern").enumerate() {
         match entry {
             Ok(path) => {
                 if let Some(s) = path.to_str() {
-                    let path_s = String::from(s).replace("\"", "").replace("assets\\", "");
+                    let path_s = String::from(s).replace("\"", "").replace("assets\\", "").replace("\\", "/");
                     println!("Adding background layer {}: {}", i, path_s);
+                    commands.spawn().insert(Background { layer: i }).insert_bundle(SpriteBundle {
+                        texture: texture_server.get(&path_s).typed::<Image>(),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::ONE * 2560.), // All background tiles must be 2560x2560
+                            ..Default::default()
+                        },
+                        transform: Transform {
+                            translation: Vec3::new(0., 0., BACKGROUND_ZORDER),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
                 }
             },
             Err(e) => eprintln!("{:?}", e)
         }
+    }
 }

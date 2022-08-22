@@ -91,7 +91,7 @@ pub fn spawn_units_system(
                                     custom_size: Some(unit_size * SPRITE_SCALE),
                                     ..Default::default()
                                 },
-                                transform: Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
+                                transform: Transform { translation: Vec3::new(0., 0., UNIT_ZORDER - 1.), ..Default::default() },
                                 ..Default::default()
                             }).insert(DebugRect);
 
@@ -104,7 +104,7 @@ pub fn spawn_units_system(
                                 fill_mode: FillMode::color(Color::rgba(0., 0., 1., 0.1)),
                                 outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 2.),
                             },
-                            Transform { translation: Vec3::new(0., 0., -2.), ..Default::default() },
+                            Transform { translation: Vec3::new(0., 0., UNIT_ZORDER - 2.), ..Default::default() },
                             )).insert(DebugSelectionRadius);
 
                             parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
@@ -116,7 +116,7 @@ pub fn spawn_units_system(
                                 fill_mode: FillMode::color(Color::rgba(1., 0., 0.5, 0.1)),
                                 outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.), 2.),
                             },
-                            Transform { translation: Vec3::new(0., 0., -3.), ..Default::default() },
+                            Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER -3.), ..Default::default() },
                             )).insert(DebugCollisionRadius);
 
                             parent.spawn_bundle(GeometryBuilder::build_as(&shapes::RegularPolygon {
@@ -128,7 +128,7 @@ pub fn spawn_units_system(
                                 fill_mode: FillMode::color(Color::rgba(0., 1., 0., 0.1)),
                                 outline_mode: StrokeMode::new(Color::rgba(0., 1., 0., 0.), 2.),
                             },
-                            Transform { translation: Vec3::new(0., 0., -4.), ..Default::default() },
+                            Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER - 4.), ..Default::default() },
                             )).insert(DebugRepulsionRadius);
                         }
 

@@ -99,6 +99,12 @@ impl ParticleEmitter {
     }
 }
 
+#[derive(Component)]
+pub struct Background {
+    pub layer: usize
+}
+
+
 // An orbiter is any satellite or body with satellites.
 #[derive(Component, Clone, Copy)]
 pub struct Orbiter;
@@ -110,6 +116,9 @@ pub struct EnvironmentalSatellite {
     pub class: String,
     pub radius: f32,
 }
+
+#[derive(Component)]
+pub struct PlanetIllumination;
 
 // The sun is the large body at the middle of the map
 #[derive(Component, Clone, Copy)]

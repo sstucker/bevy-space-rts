@@ -50,13 +50,15 @@ static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 const DEBUG_GRAPHICS: bool = false;
 
 // TODO parameterize and IO
+const UI_ABOVE_ZORDER: f32 = 1000.;
 const PROJECTILE_ZORDER: f32 = 150.;
 const UNIT_ZORDER: f32 = 100.;
 const THRUSTER_PARTICLE_ZORDER: f32 = 25.;
-const UI_ZORDER: f32 = 50.;
-const PLANET_ZORDER: f32 = 10.;
 const PLANET_UI_ZORDER: f32 = 200.;
-const WORLD_ZORDER: f32 = 0.;
+const PLANET_ZORDER: f32 = 50.;
+const UI_BENEATH_ZORDER: f32 = 40.;
+const WORLD_ZORDER: f32 = 20.;
+const BACKGROUND_ZORDER: f32 = 0.;
 
 const MAP_W: i32 = 16384;
 const MAP_H: i32 = 16384;
@@ -64,8 +66,6 @@ const MAP_H: i32 = 16384;
 const SPRITE_SCALE: f32 = 0.01;
 
 const USER_ID: u8 = 0;
-
-type WindowSize = Vec2;
 
 pub struct UnitPlugin;
 
@@ -86,10 +86,10 @@ impl Plugin for UnitPlugin {
             .add_event::<SpawnUnitEvent>()
             .add_event::<MouseOverEvent>()
             .add_startup_system(startup_system)
-            .add_startup_system_to_stage(StartupStage::Startup, setup_environment_system)
-            .add_startup_system_to_stage(StartupStage::PostStartup, setup_background_system)
-            .add_startup_system_to_stage(StartupStage::PostStartup, setup_environment_appearance_system)
-            .add_plugin(KinematicCameraPlugin)
+            .add_startup_system_to_stage(StartupStage::Startup, environment_startup_system)
+            .add_startup_system_to_stage(StartupStage::Startup, camera_startup_system)
+            .add_startup_system_to_stage(StartupStage::PostStartup, background_startup_system)
+            .add_startup_system_to_stage(StartupStage::PostStartup, environment_appearance_startup_system)
             .add_system_set(SystemSet::new()  // Unit updates
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(turret_track_and_fire_system).label(Stage::Kinematics)
@@ -106,6 +106,7 @@ impl Plugin for UnitPlugin {
             .add_system_set(SystemSet::new() // Input 
                 .with_run_criteria(FixedTimestep::step(1. / 60.))
                 .with_system(inputs::input_mouse_system)
+                .with_system(camera_move_system)
             )
             // Graphics
             .add_system_set(SystemSet::new()
@@ -149,8 +150,6 @@ fn startup_system(
     asset_server: Res<AssetServer>,
 ) {
     let window = windows.get_primary().unwrap();
-    let window_size = WindowSize::new(window.width(), window.height());
-	commands.insert_resource(window_size);
 }
 
 // TODO add these as parameters for various units
@@ -408,7 +407,7 @@ fn turret_track_and_fire_system(
                             Color::rgba(1., 0., 0., 0.7),
                             1.  // Always draw the same thickness of UI elements regardless of zoom
                         )),
-                        Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                        Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER), ..Default::default() },
                     )).insert( DebugTurretTargetLine );                    
                     let mut path_builder = PathBuilder::new();
                     path_builder.move_to(abs_turret_pos.truncate());
@@ -420,7 +419,7 @@ fn turret_track_and_fire_system(
                             Color::rgba(0., 1., 0., 0.5),
                             3.  // Always draw the same thickness of UI elements regardless of zoom
                         )),
-                        Transform { translation: Vec3::new(0., 0., 150.), ..Default::default() },
+                        Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 1.), ..Default::default() },
                     )).insert( DebugTurretTargetLine );
                 }
             }
@@ -488,7 +487,7 @@ fn projectile_collision_system(
                                 Color::rgba(1., 0., 1., 0.5),
                                 1.
                             )),
-                            Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                            Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 2.), ..Default::default() },
                         )).insert( DebugProjectileCollisionCheckLine );  
                     }    
                 }
@@ -543,7 +542,7 @@ fn capital_ship_repulsion_system(
                             Color::rgba(1., 1., 1., 0.5),
                             1.
                         )),
-                        Transform { translation: Vec3::new(0., 0., 50.), ..Default::default() },
+                        Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 3.), ..Default::default() },
                     )).insert( DebugCollisionCheckLine );  
                 }
             }

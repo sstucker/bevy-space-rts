@@ -31,7 +31,7 @@ pub fn ui_highlight_selected_system(
                 fill_mode: FillMode::color(Color::rgba(0., 0., 0., 0.)),
                 outline_mode: StrokeMode::new(sel_color, 1. * projection.scale),
             },
-            Transform { translation: Vec3::new(0., 0., UI_ZORDER), ..Default::default() },
+            Transform { translation: Vec3::new(0., 0., -1.), ..Default::default() },
         )).insert(UnitSelectedCircle);
         });
     }
@@ -83,7 +83,7 @@ pub fn ui_show_hp_system(
                 fill_mode: FillMode::color(Color::rgba(0.4, 0.4, 0.4, 0.5)),
                 outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
             },
-            Transform { translation: Vec3::new(0., 0., UI_ZORDER + 9.), ..Default::default() },
+            Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 9.), ..Default::default() },
         )).insert( HealthBar );
         commands.spawn_bundle(GeometryBuilder::build_as(
             &healthbar,
@@ -91,7 +91,7 @@ pub fn ui_show_hp_system(
                 fill_mode: FillMode::color(hp_color),
                 outline_mode: StrokeMode::new(Color::rgba(0., 0., 0., 0.), 1.),
             },
-            Transform { translation: Vec3::new(0., 0., UI_ZORDER + 10.), ..Default::default() },
+            Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 10.), ..Default::default() },
         )).insert( HealthBar );
     }
 }
@@ -121,7 +121,7 @@ pub fn ui_show_path_system(
                     Color::rgba(1., 1., 0., 0.3),
                     1. * projection.scale  // Always draw the same thickness of UI elements regardless of zoom
                 )),
-                Transform { translation: Vec3::new(0., 0., 5.), ..Default::default() },
+                Transform { translation: Vec3::new(0., 0., UI_BENEATH_ZORDER), ..Default::default() },
             )).insert( UnitPathDisplay );
         }
     }
@@ -135,7 +135,6 @@ pub fn ui_fps_system(
 
 pub fn ui_planet_system(
     mut commands: Commands,
-    windows: Res<Windows>,
     q_orbit_ui: Query<Entity, With<PlanetOrbitUI>>, 
     mut q_info_ui: Query<(&mut Visibility, &mut Transform), (With<PlanetInfoUI>, Without<EnvironmentalSatellite>)>, 
     q_planets: Query<(&EnvironmentalSatellite, &Children, &Orbit, &Transform), With<EnvironmentalSatellite>>, 

@@ -1,16 +1,16 @@
+use std::ops::Div;
+
 use bevy::{prelude::*, input::mouse::{MouseWheel, MouseScrollUnit}};
 
-use crate::{Map, inputs::MouseOverEvent};
+use crate::{Map, inputs::MouseOverEvent, Background, BACKGROUND_ZORDER};
 
 // TODO parameters
 const CAMERA_DRAG: f32 = 0.8;  // cam_v_t = cam_v_t-1 * CAMERA_DRAG
 const MIN_ZOOM_SCALE: f32 = 0.04;
-const MAX_ZOOM_SCALE: f32 = 30.;
+const MAX_ZOOM_SCALE: f32 = 18.;
 const LATERAL_MOVEMENT_SENS: f32 = 2.;
 const ZOOM_SENS_LN: f32 = 1. / 16.;
 const ZOOM_SENS_PX: f32 = 1. / 16.;
-
-pub struct KinematicCameraPlugin;
 
 #[derive(Component)]
 pub struct OrthographicVelocity {
@@ -31,43 +31,36 @@ impl Default for OrthographicVelocity {
     }
 }
 
-
-impl Plugin for KinematicCameraPlugin {
-    fn build(&self, app: &mut App) {
-        app
-            .add_startup_system(camera_startup_system)
-            .add_system(camera_move_system);
-    }
-}
-
-fn camera_startup_system(
+pub fn camera_startup_system(
     mut commands: Commands,
 ) {
     commands.spawn_bundle(Camera2dBundle::default())
 		.insert(OrthographicVelocity { ..Default::default() });
 }
 
-fn camera_move_system(
+pub fn camera_move_system(
     kb: Res<Input<KeyCode>>,
     mut scrolls: EventReader<MouseWheel>,
-    mut query: Query<(&Camera, &mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
+    mut q_camera: Query<(&Camera, &mut OrthographicProjection, &mut Transform, &mut OrthographicVelocity), With<Camera>>,
+    mut q_background: Query<(&mut Transform, &Background), (With<Background>, Without<Camera>)>,
     q_map: Query<&Map, With<Map>>,
     windows: Res<Windows>,
     mb: Res<Input<MouseButton>>,
 ) {
-    if let Ok((camera, mut projection, mut cam_transform, mut cam_velocity)) = query.get_single_mut() {
+    if let Ok((camera, mut projection, mut cam_transform, mut cam_velocity)) = q_camera.get_single_mut() {
         let map = q_map.single();
+        let map_size = Vec2::new(map.w as f32, map.h as f32);
         // Change velocity
         cam_velocity.dx +=
         if kb.pressed(KeyCode::Left) && (cam_transform.translation.x > 0.) {
 			-LATERAL_MOVEMENT_SENS
-		} else if kb.pressed(KeyCode::Right) && (cam_transform.translation.x < map.w as f32) {
+		} else if kb.pressed(KeyCode::Right) && (cam_transform.translation.x < map_size.x) {
 			LATERAL_MOVEMENT_SENS
 		} else {
 			0.
 		};
         cam_velocity.dy +=
-        if kb.pressed(KeyCode::Up) && (cam_transform.translation.y < map.h as f32) {
+        if kb.pressed(KeyCode::Up) && (cam_transform.translation.y < map_size.y) {
 			LATERAL_MOVEMENT_SENS
 		} else if kb.pressed(KeyCode::Down) && (cam_transform.translation.y > 0.) {
 			-LATERAL_MOVEMENT_SENS
@@ -126,5 +119,12 @@ fn camera_move_system(
         cam_velocity.dy *= CAMERA_DRAG;
         cam_velocity.dz *= CAMERA_DRAG;
         // TODO rotation?
+        // Move background with camera
+        let cam_proportional_pos = cam_transform.translation.truncate().div(map_size) - 0.5;
+        for (mut transform, background) in q_background.iter_mut() {
+            transform.translation = (cam_transform.translation.truncate() + cam_proportional_pos * 400. * projection.scale * background.layer as f32)
+            .extend(BACKGROUND_ZORDER + background.layer as f32);
+            transform.scale = Vec3::new(1., 1., 0.) * projection.scale;
+        }
     }
 }
