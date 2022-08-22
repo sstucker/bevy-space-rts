@@ -47,14 +47,14 @@ pub use animation::*;
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 
-const DEBUG_GRAPHICS: bool = false;
+const DEBUG_GRAPHICS: bool = true;
 
 // TODO parameterize and IO
-const UI_ABOVE_ZORDER: f32 = 1000.;
+const UI_ABOVE_ZORDER: f32 = 500.;
+const PLANET_UI_ZORDER: f32 = 200.;
 const PROJECTILE_ZORDER: f32 = 150.;
 const UNIT_ZORDER: f32 = 100.;
 const THRUSTER_PARTICLE_ZORDER: f32 = 25.;
-const PLANET_UI_ZORDER: f32 = 200.;
 const PLANET_ZORDER: f32 = 50.;
 const UI_BENEATH_ZORDER: f32 = 40.;
 const WORLD_ZORDER: f32 = 20.;
@@ -351,6 +351,20 @@ fn turret_track_and_fire_system(
                     // Fire!
                     if let Some(projectile_data) = projectiles.get(&turret.projectile) {
                         let mut fire_projectile = |fire_from: Vec3| {
+                            if DEBUG_GRAPHICS {
+                                let mut path_builder = PathBuilder::new();
+                                path_builder.move_to(fire_from.truncate());
+                                path_builder.line_to(fire_from.truncate() + heading * 20.);
+                                let line = path_builder.build();
+                                commands.spawn_bundle(GeometryBuilder::build_as(
+                                    &line,
+                                    DrawMode::Stroke(StrokeMode::new(
+                                        Color::rgba(1., 1., 1., 1.),
+                                        1.  // Always draw the same thickness of UI elements regardless of zoom
+                                    )),
+                                    Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER), ..Default::default() },
+                                )).insert( DebugTurretTargetLine );
+                            }          
                             let mut ec = commands.spawn();
                             ec.insert(Projectile {
                                 fired_from: fire_from.truncate(),
@@ -394,30 +408,30 @@ fn turret_track_and_fire_system(
 
                 // DEBUG GRAPHICS
                 if DEBUG_GRAPHICS {
-                    let mut path_builder = PathBuilder::new();
-                    path_builder.move_to(abs_turret_pos.truncate());
-                    path_builder.line_to(target_body.position.truncate());
-                    let line = path_builder.build();
-                    commands.spawn_bundle(GeometryBuilder::build_as(
-                        &line,
-                        DrawMode::Stroke(StrokeMode::new(
-                            Color::rgba(1., 0., 0., 0.7),
-                            1.  // Always draw the same thickness of UI elements regardless of zoom
-                        )),
-                        Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER), ..Default::default() },
-                    )).insert( DebugTurretTargetLine );                    
-                    let mut path_builder = PathBuilder::new();
-                    path_builder.move_to(abs_turret_pos.truncate());
-                    path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
-                    let line = path_builder.build();
-                    commands.spawn_bundle(GeometryBuilder::build_as(
-                        &line,
-                        DrawMode::Stroke(StrokeMode::new(
-                            Color::rgba(0., 1., 0., 0.5),
-                            3.  // Always draw the same thickness of UI elements regardless of zoom
-                        )),
-                        Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 1.), ..Default::default() },
-                    )).insert( DebugTurretTargetLine );
+                    // let mut path_builder = PathBuilder::new();
+                    // path_builder.move_to(abs_turret_pos.truncate());
+                    // path_builder.line_to(target_body.position.truncate());
+                    // let line = path_builder.build();
+                    // commands.spawn_bundle(GeometryBuilder::build_as(
+                    //     &line,
+                    //     DrawMode::Stroke(StrokeMode::new(
+                    //         Color::rgba(1., 0., 0., 0.2),
+                    //         1.  // Always draw the same thickness of UI elements regardless of zoom
+                    //     )),
+                    //     Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER), ..Default::default() },
+                    // )).insert( DebugTurretTargetLine );                    
+                    // let mut path_builder = PathBuilder::new();
+                    // path_builder.move_to(abs_turret_pos.truncate());
+                    // path_builder.line_to(abs_turret_pos.truncate() + heading * 50.);
+                    // let line = path_builder.build();
+                    // commands.spawn_bundle(GeometryBuilder::build_as(
+                    //     &line,
+                    //     DrawMode::Stroke(StrokeMode::new(
+                    //         Color::rgba(0., 1., 0., 0.2),
+                    //         3.  // Always draw the same thickness of UI elements regardless of zoom
+                    //     )),
+                    //     Transform { translation: Vec3::new(0., 0., UI_ABOVE_ZORDER + 1.), ..Default::default() },
+                    // )).insert( DebugTurretTargetLine );
                 }
             }
             else {
