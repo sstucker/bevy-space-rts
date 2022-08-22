@@ -8,13 +8,13 @@ use crate::*;
 
 // TODO generative
 const SOLAR_RADIUS: f32 = 400.;
-const ORBITAL_MARGIN: f32 = 300.;  // The distance between the innermost satellite and the sun as well as the distance between the furthest satellite and the edge of the map
+const ORBITAL_MARGIN: f32 = 600.;  // The distance between the innermost satellite and the sun as well as the distance between the furthest satellite and the edge of the map
 const N_PRIMARY_SATELLITES: i32 = 5;
 const MAX_SECONDARY_SATELLITES: i32 = 3;
 const SECONDARY_RADII: f32 = 450.;  // TODO randomize
 const ORBITAL_RATE: f32 = 0.001;
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
-pub const ORBITAL_RADIUS_RATIO: f32 = 16.;  // The ratio of a Planet's radius to its inertial and territorial zone
+pub const ORBITAL_RADIUS_RATIO: f32 = 15.;  // The ratio of a Planet's radius to its inertial and territorial zone
 
 pub const PLANET_ILLUM_SPRITE: &str = "data/environment/planet_lighting_1.png";
 
