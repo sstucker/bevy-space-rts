@@ -12,7 +12,7 @@ const ORBITAL_MARGIN: f32 = 600.;  // The distance between the innermost satelli
 const N_PRIMARY_SATELLITES: i32 = 5;
 const MAX_SECONDARY_SATELLITES: i32 = 3;
 const SECONDARY_RADII: f32 = 450.;  // TODO randomize
-const ORBITAL_RATE: f32 = 0.001;
+const ORBITAL_RATE: f32 = 0.0005;
 const PLANET_NAMES: &'static [&'static str] = &["Garden", "Angus", "Orrin", "Heart", "Scrub", "Julia"];
 pub const ORBITAL_RADIUS_RATIO: f32 = 15.;  // The ratio of a Planet's radius to its inertial and territorial zone
 pub const MOON_TO_PLANET_RATIO: f32 = 2.;  // The ratio of a Planet's size to the maximum size of its moons
@@ -71,10 +71,10 @@ pub fn environment_startup_system(
         println!("Generating major satellite at orbital radius {}", orbital_radius);
         let r = rand::thread_rng().gen_range(0.5..1.0) * planet_gravitational_diameter / ORBITAL_RADIUS_RATIO;
         let planet_name = PLANET_NAMES[i];
-        // let orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
-        // let orbital_rate = rand::thread_rng().gen_range(1.0..3.0) * ORBITAL_RATE;
-        let orbital_angle: f32 = 0.;
-        let orbital_rate: f32 = 0.;
+        let orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
+        let orbital_rate = rand::thread_rng().gen_range(1.0..3.0) * ORBITAL_RATE;
+        // let orbital_angle: f32 = 0.;
+        // let orbital_rate: f32 = 0.;
         let position = Vec3::new(
             MAP_W as f32 / 2. + orbital_angle.cos() * orbital_radius,
             MAP_H as f32 / 2. + orbital_angle.sin() * orbital_radius,
@@ -109,10 +109,10 @@ pub fn environment_startup_system(
             for j in 0..n_moons {
                 let s2_orbital_radius = j as f32 * lunar_diameter + r + lunar_diameter / 2.;
                 let s2_r = rand::thread_rng().gen_range(0.7..1.0) * moon_size;
-                // let s2_orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
-                // let s2_orbital_rate = rand::thread_rng().gen_range(4.0..5.0) * ORBITAL_RATE * 10.;
-                let s2_orbital_angle: f32 = 0.;
-                let s2_orbital_rate: f32 = 0.;
+                let s2_orbital_angle = rand::thread_rng().gen_range(0.0..(2.*PI));
+                let s2_orbital_rate = rand::thread_rng().gen_range(4.0..5.0) * ORBITAL_RATE * 10.;
+                // let s2_orbital_angle: f32 = 0.;
+                // let s2_orbital_rate: f32 = 0.;
                 let mut s2_position = position.clone();
                 s2_position.x += s2_orbital_angle.cos() * s2_orbital_radius;
                 s2_position.y += s2_orbital_angle.sin() * s2_orbital_radius;

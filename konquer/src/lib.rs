@@ -47,7 +47,7 @@ pub use animation::*;
 // Package level variables
 static NUMBER_OF_OWNERS: AtomicU8 = AtomicU8::new(0);
 
-const DEBUG_GRAPHICS: bool = true;
+const DEBUG_GRAPHICS: bool = false;
 
 // TODO parameterize and IO
 const UI_ABOVE_ZORDER: f32 = 500.;
